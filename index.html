@@ -42,20 +42,19 @@
     // We have different parsing formats depending on the type of data: daily, hourly, by minute, etc.
     var parseDateFormat1 = d3.time.format("%Y,%m,%d,%H").parse;             // For data per hour. "%-" means it ignores padding, removing the need for zero-padding perhaps?
     var parseDateFormat2 = d3.time.format("%Y,%m,%d,%H,%M").parse;          // For data per minute.
-    var parseDateFormat = d3.time.format("%Y-%m-%dT%H:%M:%S").parse;          // For data per minute.
 
     // Setup X and Y scales.
-    x = d3.time.scale()
-        .range([0, width]);
-    y = d3.scale.linear()
-        .range([height, 0]);
-    // Setup X and Y axis, using the scales.
-    xAxis = d3.svg.axis()
-        .scale(x)
-        .orient("bottom");
-    yAxis = d3.svg.axis()
-        .scale(y)
-        .orient("left");
+    // x = d3.time.scale()
+    //     .range([0, width]);
+    // y = d3.scale.linear()
+    //     .range([height, 0]);
+    // // Setup X and Y axis, using the scales.
+    // xAxis = d3.svg.axis()
+    //     .scale(x)
+    //     .orient("bottom");
+    // yAxis = d3.svg.axis()
+    //     .scale(y)
+    //     .orient("left");
     
     // Setup a date objects for setting START and END params for the query string.
     var cur_date = new Date();                                                          // get current date.
@@ -129,35 +128,41 @@
             
             console.log("- - - - - - - - - - - - - - - - - - #"+ this_i +" DATA : ")
             console.log(json_data);
-            
-            // - - - - MAKE CHART HERE
-            json_data.map(function (cur_row, index) {
-              console.log("MAP -- cur_row: "+ cur_row +" | index: "+ index);
-              console.log("requested_datetime 1 = "+ cur_row.requested_datetime);
-              console.log(typeof cur_row.requested_datetime);
-              cur_row.requested_datetime = cur_row.requested_datetime.slice(0, -6);     // remove timezone at end.
-              console.log("requested_datetime 2 = "+ cur_row.requested_datetime);
-              cur_row.requested_datetime = parseDateFormat(String(cur_row.requested_datetime));
-            });
 
-            x.domain([
-              d3.min(json_data, function(d) { return d.requested_datetime; }),
-              d3.max(json_data, function(d) { return d.requested_datetime; })
-            ]);
-            y.domain([
-              d3.min(json_data, function(d) { return d.service_request_id; }),
-              d3.max(json_data, function(d) { return d.service_request_id; })
-            ]);
+            // - - - - MAKE CHART HERE
+
+            var parseDateFormat = d3.time.format("%Y-%m-%dT%H:%M:%S").parse;          // For data per minute.
+            
+            x = d3.time.scale()
+                .range([0, width]);
+            y = d3.scale.linear()
+                .range([height, 0]);
+            
+            xAxis = d3.svg.axis()
+                .scale(x)
+                .orient("bottom");
+            yAxis = d3.svg.axis()
+                .scale(y)
+                .orient("left");
 
             var line = d3.svg.line()
               .x(function(d) { return x(d.requested_datetime); })
-              .y(function(d) { return y(d.service_request_id); })
-              .interpolate("basis");
-            charts[this_i].append("path")
-              .datum(json_data)
-              .attr("class", "line")
-              .attr("d", line);
+              .y(function(d) { return y(d.service_request_id); });
+              // .interpolate("basis");
+
+            json_data.map(function (cur_row, index) {
+              console.log("MAP -- index: "+ index);
+              console.log("service_request_id = "+ cur_row.service_request_id);
+              cur_row.requested_datetime = cur_row.requested_datetime.slice(0, -6);     // remove timezone at end.
+              console.log("requested_datetime = "+ cur_row.requested_datetime);
+              cur_row.requested_datetime = parseDateFormat(String(cur_row.requested_datetime));
+              console.log("requested_datetime = "+ cur_row.requested_datetime);
+
+              cur_row.service_request_id = +cur_row.service_request_id;
             });
+
+            x.domain(d3.extent(json_data, function(d){ return d.requested_datetime; }));
+            y.domain(d3.extent(json_data, function(d){ return d.service_request_id; }));
 
             // Draw the X-axis of the graph.
             charts[this_i].append("g")
@@ -175,8 +180,15 @@
                 .attr("dy", ".71em")
                 .style("text-anchor", "end")
                 .attr("class", "axis-text")
-                .text("value");
+                .text("BLAH");
           
+            charts[this_i].append("path")
+                .datum(json_data)
+                .attr("class", "line")
+                .attr("d", line);
+
+          });
+
         }(i));    //pass in our "i" from the loop
       }
 
