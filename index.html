@@ -8,60 +8,14 @@
   <body>
     <div class="wrapper">
 
-      <div id="autorefresh_toggle">
-        <div class="onoffswitch">
-          <input type="checkbox" name="onoffswitch" class="onoffswitch-checkbox" id="myonoffswitch" onchange="toggleCheckbox(this)">
-          <label class="onoffswitch-label" for="myonoffswitch">
-            <div class="onoffswitch-inner"></div>
-            <div class="onoffswitch-switch"></div>
-          </label>
-        </div>
-        <div style="clear: both;"></div>
-        <h3>Autorefresh<br />60 seconds</h3>
-      </div>
-
-
-      <div id="game_title"><h1></h1></div>
-
-      <!-- TODO: rename all container id's later -->
-
-      <div id="graph_container_1" class="graph_container full_row">
-        <span class="header_clicker">hide</span>
-        <div class="column1"><h2>Confidence <br />This day</h2></div>
-        <div class="column2"><h2>Confidence <br />This hour</h2></div>
-        <div class="column3"><h2>Confidence <br />This minute</h2></div>
-        <div class="column1"><div id="graph_100"><p></p></div></div>
-        <div class="column2"><div id="graph_101"><p></p></div></div>
-        <div class="column3"><div id="graph_102"><p></p></div></div>
-      </div>
+      <div id="game_title"><h1>Dudley D3 Dashboard</h1></div>
 
       <div id="graph_container_2" class=" graph_container full_row">
         <span class="header_clicker">hide</span>
-        <h2>Confidence</h2>
+        <h2>Overall Requests/Day</h2>
         <!-- <div id="graph_1"><p>smoothing : 41</p><p>time window : last 6 hours</p></div> -->
         <span class="caption"></span>
         <div id="graph_1"></div>
-      </div>
-      <div id="graph_container_3" class=" graph_container full_row">
-        <span class="header_clicker">hide</span>
-        <h2>Tweets</h2>
-        <span class="caption"></span>
-        <div id="graph_2"></div>
-        <!-- <div id="graph_2"><p>smoothing : 21</p><p>time window : last 6 hours</p></div> -->
-      </div>
-      <div id="graph_container_4" class=" graph_container full_row">
-        <span class="header_clicker">hide</span>
-        <h2>Positivity</h2>
-        <span class="caption"></span>
-        <div id="graph_3"></div>
-        <!-- <div id="graph_3"><p>smoothing : 21</p><p>time window : last 6 hours</p></div> -->
-      </div>
-      <div id="graph_container_5" class=" graph_container full_row">
-        <span class="header_clicker">hide</span>
-        <h2>Negativity</h2>
-        <span class="caption"></span>
-        <div id="graph_4"></div>
-        <!-- <div id="graph_4"><p>smoothing : 21</p><p>time window : last 6 hours</p></div> -->
       </div>
       
     </div>
@@ -76,21 +30,6 @@
     // Set default teams and colors. Is overwritten by results of our JSON calls.
     var cur_teams = { "afc" : "none", "nfc" : "none" };
     var cur_colors = { "afc" : "black", "nfc" : "black" };
-    var autorefresh_interval = null;
-
-    // Setup autorefresh toggle button.
-    function toggleCheckbox(element) {
-      console.log("t- toggleCheckbox- checked = "+ element.checked);
-
-      // Reload page every 30 seconds.
-      if (element.checked) {
-        autorefresh_interval = setInterval( setup_charts, 60000 );
-      } else {
-        clearInterval(autorefresh_interval);
-      }
-      
-    }
-
 
     // Setup show/hide link for all graphs.
     $(".header_clicker").click(function() { 
@@ -164,10 +103,7 @@
     // For each chart, this array contains : [0] = the data url, [1] = the desired front dataset (the AFC team or NFC team), [2] = the desired back dataset (AFC or NFC), [3] = the parse format, (optional)[4] = the smoothing amount.
     // Some data urls are the live API, some are backed-up data files.
     var charts_data = [ 
-                        ["http://wgwapi.com/game/confidence?time=min&start=" + formattedStartDate + "&end=" +formattedEndDate, "nfc", "afc", 2, 20, true],
-                        ["http://wgwapi.com/game/tweets?time=min&start=" + formattedStartDate + "&end=" +formattedEndDate, "nfc", "afc", 2, 10, true],
-                        ["http://wgwapi.com/game/pos?time=min&start=" + formattedStartDate + "&end=" +formattedEndDate, "nfc", "afc", 2, 10, true],
-                        ["http://wgwapi.com/game/neg?time=min&start=" + formattedStartDate + "&end=" +formattedEndDate, "nfc", "afc", 2, 10, true],
+                        ["http://wgwapi.com/game/confidence?time=min&start=" + formattedStartDate + "&end=" +formattedEndDate, "nfc", "afc", 2, 20, true]
                       ];
     
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - Init : Time series charts - - -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -175,225 +111,6 @@
     // this call starts everything.
     setup_charts();
 
-    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - Bar charts - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-    // To store all barchart SVG objects
-    var barcharts = [];
-
-    function draw_barcharts() {
-
-      var margin_bars = {top: 50, right: 20, bottom: 30, left: 50},
-      width_bars = 250 - margin_bars.left - margin_bars.right,
-      height_bars = 200 - margin_bars.top - margin_bars.bottom;
-      var x_bars = d3.scale.ordinal().rangeRoundBands([0, width_bars], .1);
-      var y_bars = d3.scale.linear().range([height_bars, 0]);
-      var xAxis_bars = d3.svg.axis().scale(x_bars).orient("bottom");
-      var yAxis_bars = d3.svg.axis().scale(y_bars).orient("left");
-      
-
-      // console.log("--------------------------------- barchart SVG empty? = "+ d3.select("#graph_100 svg").empty())
-      // Due to autorefresh button, must check if each chart's SVG exists already before creating it.
-      if (d3.select("#graph_100 svg").empty() === false) {
-        d3.select("#graph_100 svg").remove();
-      }
-      var bar_chart_1 = d3.select("#graph_100").append("svg")
-          .attr("width", width_bars + margin_bars.left + margin_bars.right)
-          .attr("height", height_bars + margin_bars.top + margin_bars.bottom)
-        .append("g")
-          .attr("transform", "translate(" + margin_bars.left + "," + margin_bars.top + ")");
-      barcharts[0] = bar_chart_1;
-     
-      if (d3.select("#graph_101 svg").empty() === false) {
-        d3.select("#graph_101 svg").remove();
-      }
-      var bar_chart_2 = d3.select("#graph_101").append("svg")
-          .attr("width", width_bars + margin_bars.left + margin_bars.right)
-          .attr("height", height_bars + margin_bars.top + margin_bars.bottom)
-        .append("g")
-          .attr("transform", "translate(" + margin_bars.left + "," + margin_bars.top + ")");
-      barcharts[1] = bar_chart_2;
-      
-      if (d3.select("#graph_102 svg").empty() === false) {
-        d3.select("#graph_102 svg").remove();
-      }
-      var bar_chart_3 = d3.select("#graph_102").append("svg")
-          .attr("width", width_bars + margin_bars.left + margin_bars.right)
-          .attr("height", height_bars + margin_bars.top + margin_bars.bottom)
-        .append("g")
-          .attr("transform", "translate(" + margin_bars.left + "," + margin_bars.top + ")");
-      barcharts[2] = bar_chart_3;
-      
-
-      // Confidence This Day bar chart :
-      // Do not use the API's built-in 'day' measure.
-      // Instead, get all minutes in current day (from midnight until current time) and average them, to get more truthful data.
-      var formattedMidnightDate = formattedEndDate.slice(0, formattedEndDate.length-5) + "00:01"        // use formattedEndDate (current time) but replace hours & minutes with midnight.
-      // console.log("t- - - - - - - - - - - - - - - - formattedMidnightDate: "+ formattedMidnightDate );
-      // console.log("t- - - - - - - - - - - - - - - - formattedEndDate: "+ formattedEndDate );
-      // console.log("t- - - - - - - - - - - - - - - - query: http://wgwapi.com/game/confidence?time=min&start=" + formattedMidnightDate + "&end=" +formattedEndDate );
-      // d3.json("http://wgwapi.com/game/confidence?time=min&start=" + formattedMidnightDate + "&end=" +formattedEndDate, function(error, json_data) {
-      d3.json("http://wgwapi.com/game/", function(error, json_data) {
-
-        // console.log("t- - - - - - - - - - - - - - - - json_data: ");
-        // console.log(json_data);
-
-        // $("#graph_100").prepend("<p>/game/</p>");
-        $("#graph_100 p").html("/game/");
-
-        var data_bars = [];
-        
-        var row  = {};
-        var team_name = cur_teams["afc"].charAt(0).toUpperCase() + cur_teams["afc"].slice(1);
-        row.team = team_name;
-        row.value = +json_data.afc;
-        data_bars.push(row);
-        
-        var row  = {};
-        var team_name = cur_teams["nfc"].charAt(0).toUpperCase() + cur_teams["nfc"].slice(1);
-        row.team = team_name;
-        row.value = +json_data.nfc;
-        data_bars.push(row);
-        
-        // console.log("data_bars #1")
-        // console.log(data_bars)
-
-        x_bars.domain(data_bars.map(function(d) { return d.team; }));
-        y_bars.domain([0, d3.max(data_bars, function(d) { return d.value; })]);
-
-        barcharts[0].append("g")
-            .attr("class", "x axis")
-            .attr("transform", "translate(0," + height_bars + ")")
-            .call(xAxis_bars);
-
-        barcharts[0].append("g")
-            .attr("class", "y axis")
-            .call(yAxis_bars);
-
-        barcharts[0].selectAll(".bar")
-            .data(data_bars)
-          .enter().append("rect")
-            .attr("class", function(d) { return ("bar " + d.team.toLowerCase()); })
-            .attr("x", function(d) { return x_bars(d.team); })
-            .attr("width", x_bars.rangeBand())
-            .attr("y", function(d) { return y_bars(d.value); })
-            .attr("height", function(d) { return height_bars - y_bars(d.value); });
-            
-      });
-
-      // Confidence This Hour bar chart :
-      // Do not use the API's built-in 'hour' measure.
-      // Instead, get last 60 minutes of data and average them, to get more truthful data.
-      var startHourDate = new Date(endDate.getTime());          // clone current EST date to create new EST date in hour in the past.
-      startHourDate.setHours(startHourDate.getHours() - 1);     // set date to "hours_of_data" hours ago (again, in EST time).
-      var startMonth = String("0" + Number(startHourDate.getMonth()+1)).slice(-2);                // add 1 to month since it's normally from [0-11]. Also add a zero fopr zero-padding single-digit values.
-      var startDay = String("0" + startHourDate.getDate()).slice(-2);
-      var startHours = String("0" + startHourDate.getHours()).slice(-2);
-      var startMinutes = String("0" + startHourDate.getMinutes()).slice(-2);    
-      var formattedStartHourDate = String( startHourDate.getFullYear() +"-"+ startMonth +"-"+ startDay +"T"+ startHours +":"+ startMinutes );     // format the entire time string in the format "2013-12-03T10:00".
-      // console.log("t- - - - - - - - - - - - - - - - formattedStartHourDate: "+ formattedStartHourDate );
-      // console.log("t- - - - - - - - - - - - - - - - formattedEndDate: "+ formattedEndDate );
-      // console.log("t- - - - - - - - - - - - - - - - query: http://wgwapi.com/game/confidence?time=min&start=" + formattedStartHourDate + "&end=" +formattedEndDate );
-      d3.json("http://wgwapi.com/game/confidence?time=min&start=" + formattedStartHourDate + "&end=" +formattedEndDate, function(error, json_data) {
-        
-        // console.log("t- - - - - - - - - - - - - - - - json_data: ");
-        // console.log(json_data);
-
-        // $("#graph_101").prepend("<p>/game/confidence?time=min&start=" + formattedStartHourDate + "&end=" +formattedEndDate + "</p>");
-        $("#graph_101 p").html("/game/confidence?time=min&start=" + formattedStartHourDate + "&end=" +formattedEndDate);
-
-        // Compute the mean (average) of the last hour's minute data.
-        var meanAFC = d3.mean( json_data.afc, function(d) { return d.value; } );
-        var meanNFC = d3.mean( json_data.nfc, function(d) { return d.value; } );
-        // console.log("t- - - - - - - - - - - - - - - - mean AFC: "+ meanAFC);
-        // console.log("t- - - - - - - - - - - - - - - - mean NFC: "+ meanNFC);
-
-        // Create X and Y data for both teams
-        var data_bars = [];        
-        var rowAFC  = {};
-        var team_name = cur_teams["afc"].charAt(0).toUpperCase() + cur_teams["afc"].slice(1);
-        rowAFC.team = team_name;
-        rowAFC.value = meanAFC;
-        data_bars.push(rowAFC);
-        var rowNFC  = {};
-        var team_name = cur_teams["nfc"].charAt(0).toUpperCase() + cur_teams["nfc"].slice(1);
-        rowNFC.team = team_name;
-        rowNFC.value = meanNFC;
-        data_bars.push(rowNFC);
-
-        // console.log("data_bars #2")
-        // console.log(data_bars)
-
-        x_bars.domain(data_bars.map(function(d) { return d.team; }));
-        y_bars.domain([0, d3.max(data_bars, function(d) { return d.value; })]);
-
-        barcharts[1].append("g")
-            .attr("class", "x axis")
-            .attr("transform", "translate(0," + height_bars + ")")
-            .call(xAxis_bars);
-
-        barcharts[1].append("g")
-            .attr("class", "y axis")
-            .call(yAxis_bars)
-          
-        barcharts[1].selectAll(".bar")
-            .data(data_bars)
-          .enter().append("rect")
-            .attr("class", function(d) { return ("bar " + d.team.toLowerCase()); })
-            .attr("x", function(d) { return x_bars(d.team); })
-            .attr("width", x_bars.rangeBand())
-            .attr("y", function(d) { return y_bars(d.value); })
-            .attr("height", function(d) { return height_bars - y_bars(d.value); });
-      });
-      
-      // Confidence This Minute bar chart :
-      // Use the API's built-in 'minute' measure.
-      d3.json("http://wgwapi.com/game/confidence?time=min&num=1", function(error, json_data) {
-        
-        // $("#graph_102").prepend("<p>/game/confidence?time=min&num=1</p>");
-        $("#graph_102 p").html("/game/confidence?time=min&num=1");
-
-        var data_bars = [];
-        json_data.afc.forEach(function(d) {
-          d.value = +d.value;
-          var row  = {};
-          var team_name = cur_teams["afc"].charAt(0).toUpperCase() + cur_teams["afc"].slice(1);
-          row.team = team_name;
-          row.value = d.value;
-          data_bars.push(row);
-        });
-        json_data.nfc.forEach(function(d) {
-          d.value = +d.value;
-          var row = {};
-          var team_name = cur_teams["nfc"].charAt(0).toUpperCase() + cur_teams["nfc"].slice(1);
-          row.team = team_name;
-          row.value = d.value;
-          data_bars.push(row);
-        });
-        // console.log(data_bars)
-
-        x_bars.domain(data_bars.map(function(d) { return d.team; }));
-        y_bars.domain([0, d3.max(data_bars, function(d) { return d.value; })]);
-
-        barcharts[2].append("g")
-            .attr("class", "x axis")
-            .attr("transform", "translate(0," + height_bars + ")")
-            .call(xAxis_bars);
-
-        barcharts[2].append("g")
-            .attr("class", "y axis")
-            .call(yAxis_bars)
-
-        barcharts[2].selectAll(".bar")
-            .data(data_bars)
-          .enter().append("rect")
-            .attr("class", function(d) { return ("bar " + d.team.toLowerCase()); })
-            .attr("x", function(d) { return x_bars(d.team); })
-            .attr("width", x_bars.rangeBand())
-            .attr("y", function(d) { return y_bars(d.value); })
-            .attr("height", function(d) { return height_bars - y_bars(d.value); });
-      });
-    }
-    
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - Functions - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     // setup chart objects and data.
@@ -460,13 +177,7 @@
                 cur_colors = { "afc" : get_team_color(json_data.afc_team), "nfc" : get_team_color(json_data.nfc_team) };
                 // console.log("team AFC : "+ json_data.afc_team + " | team NFC : "+ json_data.nfc_team);
                 // console.log("color AFC : "+ get_team_color(json_data.afc_team) + " | color NFC : "+ get_team_color(json_data.nfc_team));
-
-                // insert the team names for the current game in the page title.
-                d3.select("#game_title h1")
-                  .html("Game<br/><span class="+ cur_teams["afc"] +">"+ cur_teams["afc"] +"</span><br /><span class="+ cur_teams["nfc"] +">"+ cur_teams["nfc"] +"</span>");
-
-                // draw barcharts.
-                draw_barcharts();
+                
               }
 
               // format current data strea and draw its single chart.
