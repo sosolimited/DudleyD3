@@ -1,0 +1,351 @@
+body {
+  font: 10px sans-serif;
+  color: black;
+  background-color: #DDD;
+  margin: 0;
+}
+h1 {
+  font-size: 10em;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: black;
+  line-height: 0.8em;
+  margin-top: 0px;
+  margin-bottom: 10px;
+  padding-bottom: 50px;
+  border-bottom: 1px black solid;
+}
+h1 .debug {
+  color: red;
+}
+h2 {
+  margin: 0;
+  padding: 0;
+  font-size: 2.5em;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: black;
+  border-bottom: 1px black solid;
+}
+h3 {
+  font-size: 1.3em;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: black;
+}
+p {
+  font-size: 1em;
+  font-weight: normal;
+}
+/* forces divs (ie. "boxes") to maintain the padding amount within the width of a div (and not add it to the width). */
+*, *:before, *:after {
+  -moz-box-sizing: border-box; -webkit-box-sizing: border-box; box-sizing: border-box;
+ }
+.wrapper {
+  margin: 50px auto;
+  width: 1000px;
+  overflow: auto;
+}
+.graph_container {
+  position: relative;
+  margin-top: 50px;
+  background-color: #FFF;
+  padding: 25px;
+  border-radius:5px;
+}
+.full_row{
+  float: left;
+  width: 1000px;
+}
+.column1{
+  float: left;
+  width: 300px;
+}
+.column2{
+  margin-left: 25px;
+  float: left;
+  width: 300px;
+}
+.column3{
+  margin: 0px;
+  float: right;
+  width: 300px;
+}
+.header_clicker {
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  margin: 15px 25px 0px 0px;
+  color: #AAA;
+  cursor: pointer;
+  /*border-bottom: 1px dotted black;*/
+}
+span.h1 {
+  font-size: 0.25em;
+  line-height: 0.25em;
+}
+/*p.title {
+  font-size: 2em;
+  font-weight: bold;
+  text-transform: uppercase;
+  background-color: #CCC;
+  color: white;
+  padding: 10px;
+}*/
+span.chiefs {
+  font-weight: bold;
+  color: #C60C30;
+}
+span.patriots {
+  font-weight: bold;
+  color: #0D254C;
+}
+span.broncos {
+  font-weight: bold;
+  color: #FB4F14;
+}
+span.panthers {
+  font-weight: bold;
+  color: #0088CE;    /* "Panther Blue" */
+}
+span.saints {
+  font-weight: bold;
+  color: #B4A76C;    /* "Old Gold (Flat)" */
+}
+span.seahawks {
+  color: #71D54A;
+}
+/* This class is for "49ers". But we must escape the first number for it to be recognized in CSS.
+http://forums.mozillazine.org/viewtopic.php?t=277768&start=0&postdays=0&postorder=asc
+ */
+span.\34 9ers {
+  color: rgb(170,0,0);    /* "49ers Red" */
+}
+/* This is a copy of "patriots"  because our API calls them "pats" instead. */
+span.pats {
+  color: #002244;
+}
+span.niners {
+  color: #AA0000;
+}
+.broncos {
+  font-weight: bold;
+  color: #FB4F14;
+}
+/* Controls color and size of label text for ticks on axes. */
+.axis {
+  font-size: 1em;
+  fill: #777;
+}
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #CCC;
+  shape-rendering: crispEdges;
+}
+.axis-text {
+  font-size: 1em;
+}
+/* We have diff styles for AFC and NFC, on top of specific styles for each team, so we can treat AFC or NFC areas differently regardless of what teams they are. */
+.area.afc {
+  /*fill: url(#first-gradient);*/
+  /*---*/
+  /*fill:#ff7c33;*/
+  /*stroke: #FF6319;*/
+  /*opacity: 0.9;*/
+  /*---*/
+  /*fill: url(#pattern-image);*/
+  /*---*/
+  /*fill: url(#diagonalHatch_value1);*/
+  /*opacity: 0.2;*/
+  /*---*/
+  stroke-width: 0px;
+  opacity: 1;
+}
+.area.nfc {
+  /*fill: url(#second-gradient);*/
+  /*---*/
+  /*fill:#ec414a;*/
+  /*stroke: #C60C30;*/
+  /*opacity: 0.9;*/
+  /*---*/
+  /*fill: url(#pattern-image);*/
+  /*---*/
+  /*fill: url(#diagonalHatch_value2);*/
+  /*opacity: 0.2;*/
+  /*---*/
+  stroke-width: 0px;
+  opacity: 0.5;
+}
+.area.broncos {
+  fill: #FB4F14;
+}
+.area.chiefs {
+  fill: #C60C30;
+}
+.area.patriots {
+  fill: #0D254C;
+}
+.area.pats {
+  fill: #002244;
+}
+.area.niners {
+  fill: #AA0000;
+}
+.area.panthers {
+  fill: #0088CE;    /* "Panther Blue" */
+}
+.area.saints {
+  fill: #B4A76C;    /* "Old Gold (Flat)" */
+}
+.area.seahawks {
+  fill: #71D54A;
+}
+.area.\34 9ers {
+  fill: rgb(170,0,0);    /* "49ers Red" */
+}
+
+/* DEV : Hashing 1 - START 
+/*.area_afc {
+  fill: url(#diagonalHatch_value1);
+  stroke-width: 0px;
+}
+.area_nfc {
+  fill: url(#diagonalHatch_value2);
+  stroke-width: 0px;
+}*/
+/* DEV : Hashing 1 - END */
+.line.afc {
+  fill: none;
+  stroke-width: 1px;
+}
+.line.nfc {
+  fill: none;
+  stroke-width: 1px;
+}
+.line.broncos {
+  stroke: #FB4F14;
+}
+.line.seahawks {
+  stroke: #71D54A;
+}
+.line.chiefs {
+  stroke: #C60C30;
+}
+.line.patriots {
+  stroke: #0D254C;
+}
+.line.pats {
+  stroke: #002244;
+}
+.line.niners {
+  stroke: #AA0000;
+}
+.line.panthers {
+  stroke: #0088CE;    /* "Panther Blue" */
+}
+.line.saints {
+  stroke: #B4A76C;    /* "Old Gold (Flat)" */
+}
+.line.\34 9ers {
+  stroke: rgb(170,0,0);    /* "49ers Red" */
+}
+/* - - - Bar Charts - - - */
+.bar.broncos {
+  fill: #FB4F14;
+}
+.bar.seahawks {
+  fill: #71D54A;
+}
+.bar.chiefs {
+  fill: #C60C30;
+}
+.bar.patriots {
+  fill: #0D254C;
+}
+.bar.pats {
+  fill: #002244;
+}
+.bar.niners {
+  fill: #AA0000;
+}
+.bar.panthers {
+  fill: #0088CE;    /* "Panther Blue" */
+}
+.bar.saints {
+  fill: #B4A76C;    /* "Old Gold (Flat)" */
+}
+.bar.\34 9ers {
+  fill: rgb(170,0,0);    /* "49ers Red" */
+}
+.bar:hover {
+  /*fill: brown;*/
+}
+.bar text {
+  fill: black;
+}
+/* Autorefresh toggle button */
+#autorefresh_toggle {
+  float: right;
+}
+#autorefresh_toggle h3 {
+  color: #999999;
+  margin-top: 10px;
+  text-align: right;
+}
+.onoffswitch {
+    float: right;
+    position: relative; width: 100px;
+    -webkit-user-select:none; -moz-user-select:none; -ms-user-select: none;
+}
+
+.onoffswitch-checkbox {
+    display: none;
+}
+
+.onoffswitch-label {
+    display: block; overflow: hidden; cursor: pointer;
+    border: 2px solid #FFFFF; border-radius: 5px;
+}
+
+.onoffswitch-inner {
+    width: 200%; margin-left: -100%;
+    -moz-transition: margin 0.3s ease-in 0s; -webkit-transition: margin 0.3s ease-in 0s;
+    -o-transition: margin 0.3s ease-in 0s; transition: margin 0.3s ease-in 0s;
+}
+
+.onoffswitch-inner:before, .onoffswitch-inner:after {
+    float: left; width: 50%; height: 40px; padding: 0; line-height: 40px;
+    font-size: 20px; color: white; font-family: Trebuchet, Arial, sans-serif; font-weight: bold;
+    -moz-box-sizing: border-box; -webkit-box-sizing: border-box; box-sizing: border-box;
+}
+
+.onoffswitch-inner:before {
+    content: "ON";
+    padding-left: 10px;
+    background-color: #000000; color: #FFFFFF;
+}
+
+.onoffswitch-inner:after {
+    content: "OFF";
+    padding-right: 10px;
+    background-color: #EEEEEE; color: #999999;
+    text-align: right;
+}
+
+.onoffswitch-switch {
+    width: 26px; margin: 7px;
+    background: #FFFFFF;
+    border: 2px solid #FFFFF; border-radius: 5px;
+    position: absolute; top: 0; bottom: 0; right: 56px;
+    -moz-transition: all 0.3s ease-in 0s; -webkit-transition: all 0.3s ease-in 0s;
+    -o-transition: all 0.3s ease-in 0s; transition: all 0.3s ease-in 0s; 
+}
+
+.onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-inner {
+    margin-left: 0;
+}
+
+.onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-switch {
+    right: 0px; 
+}

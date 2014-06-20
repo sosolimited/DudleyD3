@@ -1,0 +1,30 @@
+{
+  "question": "game",
+  "type": "confidence",
+  "afc": [
+    {
+      "value": 0.991332611050921,
+      "time": [
+        2013,
+        12,
+        9,
+        0,
+        null,
+        null
+      ]
+    }
+  ],
+  "nfc": [
+    {
+      "value": 0.8414634146341463,
+      "time": [
+        2013,
+        12,
+        9,
+        0,
+        null,
+        null
+      ]
+    }
+  ]
+}

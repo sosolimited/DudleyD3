@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html>
+  <meta charset="utf-8">
+  <head>
+    <title>Test Charts</title>
+    <link rel="stylesheet" type="text/css" href="css/style-november17-broncos-chiefs.css">
+  </head>
+  <body>
+    <div class="graph_container">
+      <p class="title"><span class="broncos">Broncos</span> vs <span class="chiefs">Chiefs</span><br/> Sunday November 17th</p>
+      <div class="column1">
+        <h1>Per Hour<br /> - Raw</h1>
+        <div id="graph_container_1" class="graph"><h2># Tweets</h2><p>/game/tweets?time=hour&num=24</p></div>
+        <div id="graph_container_2" class="graph"><h2>Positive Mentions</h2><p>/game/pos?time=hour&num=24</p></div>
+        <div id="graph_container_3" class="graph"><h2>Confidence</h2><p>/game/confidence?time=hour&num=24</p></div>
+      </div>
+      <div class="column2">
+        <h1>Per Minute<br /> - Raw</h1>
+        <div id="graph_container_4" class="graph"><h2># Tweets</h2><p>/game/tweets?time=min&num=1440</p></div>
+        <div id="graph_container_5" class="graph"><h2>Positive Mentions</h2><p>/game/pos?time=min&num=1440</p></div>
+        <div id="graph_container_6" class="graph"><h2>Confidence</h2><p>/game/confidence?time=min&num=1440</p></div>
+      </div>
+      <div class="column3">
+        <h1>Per Minute<br /> - Smoothed</h1>
+        <div id="graph_container_7" class="graph"><h2># Tweets</h2><p>/game/tweets?time=min&num=1440</p></div>
+        <div id="graph_container_8" class="graph"><h2>Positive Mentions</h2><p>/game/pos?time=min&num=1440</p></div>
+        <div id="graph_container_9" class="graph"><h2>Confidence</h2><p>/game/confidence?time=min&num=1440</p></div>
+      </div>
+      <div class="column1">
+        <h1>Game Data<br /> - Score</h1>
+        <div id="graph_container_10" class="graph"><p>manually collected</p></div>
+      </div>
+    </div>
+    
+  <script src="http://d3js.org/d3.v3.min.js"></script>
+  <script type="text/javascript" charset="utf-8">
+    
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - General Vars - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    // Vars for all charts size.
+    var margin = {top: 20, right: 20, bottom: 30, left: 50},
+        width = 300 - margin.left - margin.right,
+        height = 200 - margin.top - margin.bottom;
+    // Our Date parsing formats.
+    // TODO: right now the way we handle different data streams is by ignorning whole unit measures (ie. 15 minutes, single minutes) instead of treating individual null values. Need to improve code.
+    // We have different parsing formats depending on the type of data: daily, hourly, by minute, etc.
+    var parseDateFormat1 = d3.time.format("%Y,%m,%d,%H").parse;             // For data per hour. "%-" means it ignores padding, removing the need for zero-padding perhaps?
+    var parseDateFormat2 = d3.time.format("%Y,%m,%d,%H,%M").parse;          // For data per minute.
+    // Setup X and Y scales.
+    var x = d3.time.scale()
+        .range([0, width]);
+    var y = d3.scale.linear()
+        .range([height, 0]);
+    // Setup X and Y axis, using the scales.
+    var xAxis = d3.svg.axis()
+        .scale(x)
+        .orient("bottom");
+    var yAxis = d3.svg.axis()
+        .scale(y)
+        .orient("left");
+    // to store the current chart's data
+    var data;           
+    // to store all chart SVG objects
+    var charts = [];    
+    // for each chart, this array contains : [0] = the data url, [1] = the desired front dataset (value 1 (AFC) or value 2 (NFC)), [2] = the desired back dataset (value 1 or value 2), [3] = the parse format, (optional)[4] = the smoothing amount.
+    // some data urls are the live API, some are backed-up data files.
+    var charts_data = [ 
+                        ["data/data-nov7chiefsbroncos-tweets-timehour-num24.json", "value1", "value2", 1],
+                        ["data/data-nov7chiefsbroncos-pos-timehour-num24.json", "value1", "value2", 1],
+                        ["data/data-nov7chiefsbroncos-confidence-timehour-num24.json", "value2", "value1", 1],
+                        ["data/data-nov7chiefsbroncos-tweets-timemin-num1440.json", "value1", "value2", 2],
+                        ["data/data-nov7chiefsbroncos-pos-timemin-num1440.json", "value1", "value2", 2],                  // using a data file, because the live data didn't have an equal number of data points for both AFC and NFC. The data is a modified version of the live data to fix that.
+                        ["data/data-nov7chiefsbroncos-confidence-timemin-num1440.json", "value1", "value2", 2],
+                        ["data/data-nov7chiefsbroncos-tweets-timemin-num1440.json", "value1", "value2", 2, 3],
+                        ["data/data-nov7chiefsbroncos-pos-timemin-num1440.json", "value1", "value2", 2, 3],               // using a data file, because the live data didn't have an equal number of data points for both AFC and NFC. The data is a modified version of the live data to fix that.
+                        ["data/data-nov7chiefsbroncos-confidence-timemin-num1440.json", "value1", "value2", 2, 3],
+                        ["data/game-november17-broncos-chiefs.tsv"],                                                                                 // this is a manully created file, with data put together from scores on the web.
+                      ];
+    
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - Init - - -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    // this call starts everything.
+    setup_charts();
+
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - Functions - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    // setup chart objects and data.
+    function setup_charts() {
+      
+      for (var i = 0; i < charts_data.length; i++) {
+
+        // Create SVG element for the current chart.
+        var cur_chart = d3.select("#graph_container_" + (i+1) ).append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .attr("top", 100)
+          .append("g")                                // "g" is a SVG group element for applying properties to many objects at once.
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");  
+        // store the chart.
+        charts[i] = cur_chart;
+
+        // Call the JSON data. For the data we currently have, value1 = Broncos (orange), and value2 = Chiefs (red).
+        // Using a function/closure to localize "i" (and giving it another name, "this_i") so that "i" doesn't always end-up being the last index of the loop.
+        (function(this_i){      //"localizing" i by using it in the inner function
+          
+          if (charts_data[this_i][0] === "data/game-november17-broncos-chiefs.tsv") { create_special_chart(charts_data[this_i][0], charts[this_i]); }
+          else {
+            d3.json(charts_data[this_i][0], function(error, json_data) {
+              // console.log("- - - - - - - - - - - - - - - - - - #"+ this_i +" ORIGINAL DATA : ")
+              // console.log(json_data);
+              format_raw_data(json_data, charts[this_i], charts_data[this_i][1], charts_data[this_i][2], charts_data[this_i][3], charts_data[this_i][4]); 
+              // console.log("- - - - - - - - - - - - - - - - - - #"+ this_i +" D3-FORMATTED DATA : ")
+              // console.log(data);
+            });
+          }
+          
+        }(i));    //pass in our "i" from the loop
+      }
+    }
+
+    // for charts that are exceptions, we have custom treatment here.
+    function create_special_chart(chart_data_url, chart) {
+      
+      if (chart_data_url === "data/game-november17-broncos-chiefs.tsv") {
+        d3.tsv(chart_data_url, function(error, data) {                            // manually collected data
+
+          var parseDateFormat3 = d3.time.format("%M,%S").parse;
+          // Data parsing.
+          data.forEach(function(d) {
+            d.time = parseDateFormat3(d.time);
+            d["denver"] = +d["denver"];
+            d["kansas"] = +d["kansas"];
+            // console.log(d.time);
+            // console.log(d["denver"]);
+            // console.log(d["kansas"]);
+          });  
+          // Domains.
+          x.domain(d3.extent(data, function(d) { return d.time; }));
+          y.domain([0,
+            d3.max(data, function(d) { return Math.max(d["denver"], d["kansas"]); })
+          ]);
+          // Draw the lines.
+          var line1 = d3.svg.line()
+            .interpolate("step-after")
+            .x(function(d) { return x(d.time); })
+            .y(function(d) { return y(d["denver"]); });
+          var line2 = d3.svg.line()
+            .interpolate("step-after")
+            .x(function(d) { return x(d.time); })
+            .y(function(d) { return y(d["kansas"]); });
+          chart.datum(data);                              // why is this necessary?
+          chart.append("path")
+            .attr("class", "special_line1")
+            .attr("d", line1);
+          chart.append("path")
+            .attr("class", "special_line2")
+            .attr("d", line2);
+          // Draw the X-axis of the graph.
+          chart.append("g")
+              .attr("class", "x axis")
+              .attr("transform", "translate(0," + height + ")")
+              .call(xAxis);
+          // Draw the Y-axis of the graph.
+          chart.append("g")
+              .attr("class", "y axis")
+              .call(yAxis)
+            .append("text")
+              .attr("transform", "rotate(-90)")
+              .attr("y", 6)
+              .attr("dy", ".71em")
+              .style("text-anchor", "end")
+              .attr("class", "axis-text")
+              .text("value");
+        });
+      }
+    }
+
+    // Preprocess the raw data in order to have rows that contain: time, AFC value, NFC value.
+    function format_raw_data(raw_data, cur_graph, front_dataset, back_dataset, parse_format, smoothing_amount) {
+      data = [];      // clear data array
+
+      // first, check if AFC and NFC have same length
+      if (raw_data.afc.length === raw_data.nfc.length) {
+        console.log("m- AFC and NFC arrays are same length. Continue to preprocessing the D3-ready data array.");
+
+        // rip out data from the AFC object to populate our new data array (since the AFC and NFC objects have the same structure, we can use either one for building our new array).
+        raw_data.afc.map(function (cur_row, index) {
+          // console.log(cur_row);
+          // console.log(cur_row.time[4]);
+          if (parse_format === 1) {
+            cur_row.time.splice(4);                                     // TODO: removes the last 2 units for now : the 15-minute and single minute units. Eventually we need to handle them.
+          } else if (parse_format === 2) {
+            cur_row.time.splice(4, 1);                                  // TODO: remove the 15 minute unit but keep the single minutes, for this time format.
+          }
+
+          var new_row = {};                                             // use an object/associative array to store the 3 values of a new row
+          new_row["time"] = cur_row.time;                               // store the time
+          new_row["value1"] = cur_row.value;                            // store the AFC value as "value1"
+          new_row["value2"] = raw_data.nfc[index].value;                // store the related NFC value (at the same current index position) as "value2"
+          data.push( new_row );                                         // push the 3 values as a single row, to the new D3 data array
+          // console.log(data);
+        });
+        
+        // apply moving-average smoothing, if specified
+        if (smoothing_amount !== undefined) {
+          moving_window_average(data, smoothing_amount);
+        }
+        draw_chart(cur_graph, front_dataset, back_dataset, parse_format);
+
+      } else {
+        console.log("m- ************* PROBLEM ************* Original AFC and NFC arrays not same length.")
+      }
+    }
+
+    // rebuild our JSON data array: replace original value1 and value2 values with new averaged ones. The steps param determines size of averaging window (steps is the number of data points we average with on each side of our current data point).
+    function moving_window_average(array, steps) {
+
+      return array.map(function (cur_row, index) {
+        // console.log("------------------ i : "+ index);
+        // console.log("BEFORE: cur_row = ");
+        // console.log(cur_row);
+
+        // make array of just values in window around current element
+        var cur_window = array.slice(index - steps, index + steps + 1);
+        
+        // filter to get only value1 properties
+        var cur_window_value1 = cur_window.map( function(element){ 
+          var all_values = d3.values(element);
+          return all_values[1]; 
+        } );
+        // average them into one value
+        var result_value1 = (d3.sum(cur_window_value1) / cur_window_value1.length);
+        if (isNaN(result_value1)) { result_value1 = cur_row["value1"]; }      // for edge values that return bad numbers, use the original number.
+        // console.log("cur_window_value1 = ");
+        // console.log(cur_window_value1);
+
+        // filter to get only value2 properties
+        var cur_window_value2 = cur_window.map( function(element){ 
+          var all_values = d3.values(element);
+          return all_values[2]; 
+        } );
+        // average them into one value
+        var result_value2 = (d3.sum(cur_window_value2) / cur_window_value2.length);
+        if (isNaN(result_value2)) { result_value2 = cur_row["value2"]; }      // for edge values that return bad numbers, use the original number.
+        // console.log("cur_window_value2 = ");
+        // console.log(cur_window_value2);
+        
+        // put new averaged values back into the original array.
+        cur_row["value1"] = result_value1;
+        cur_row["value2"] = result_value2;
+        
+        // console.log("AFTER: cur_row = ");
+        // console.log(cur_row);
+        return cur_row;
+
+        // console.log("result = "+ result);  
+        // return result;
+      });
+    }
+
+    // draw the graphs/charts
+    function draw_chart(cur_graph, front_dataset, back_dataset, parse_format) {
+
+      // Setup each row of data by formatting the Date for X, and by converting to a number for Y.
+      // data = data.rows;                           // Descend one level to be where the rows are.
+      data.forEach(function(d) {
+        // console.log("time PRE = "+ String(d.time));
+        if (parse_format === 1) {
+          d.time = parseDateFormat1(String(d.time));         // "time" is X value.
+        } else if (parse_format === 2) {
+          d.time = parseDateFormat2(String(d.time));
+        }
+        d.value1 = +d.value1;                       // "value" is Y value. "+" converts the value to a number (not a string).
+        d.value2 = +d.value2;
+        // console.log("time POST = "+ String(d.time));
+        // console.log("value1 = "+ d.value1);
+        // console.log("value2 = "+ d.value2);
+      });
+
+      // set the X and Y domains
+      x.domain(d3.extent(data, function(d) { return d.time; }));
+      // EXCEPTION: the Per Hour/Confidence chart has a minor exception to lower the origin of the Y domain, to make it more legible.
+      if (cur_graph !== charts[2]) {
+        y.domain([
+          d3.min(data, function(d) { return Math.min(d.value1, d.value2); }),
+          d3.max(data, function(d) { return Math.max(d.value1, d.value2); })
+        ]);
+      } else {
+        y.domain([
+          d3.min(data, function(d) { return Math.min(d.value1, d.value2)/1.3; }),
+          d3.max(data, function(d) { return Math.max(d.value1, d.value2); })
+        ]);
+      }
+      // console.log("t- * * * * * * * * * * * * * * * * * * The MAX Y value = "+ d3.max(data, function(d) { return Math.max(d.value1, d.value2); }));
+
+      // pattern using line path.
+      cur_graph
+        .append('defs')
+        .append('pattern')
+          .attr('id', 'diagonalHatch_value1')
+          .attr('patternUnits', 'userSpaceOnUse')
+          .attr('width', 4)
+          .attr('height', 4)
+        .append('path')
+          .attr('d', 'M-1,3 l2,2 M0,0 l4,4 M3,-1 l2,2')
+          .attr('stroke', '#FF6319')
+          .attr('stroke-width', 2);
+      // pattern using line path.
+      cur_graph
+        .append('defs')
+        .append('pattern')
+          .attr('id', 'diagonalHatch_value2')
+          .attr('patternUnits', 'userSpaceOnUse')
+          .attr('width', 4)
+          .attr('height', 4)
+        .append('path')
+          .attr('d', 'M-1,1 l2,-2 M0,4 l4,-4 M3,5 l2,-2')
+          .attr('stroke', '#C60C30')
+          .attr('stroke-width', 2);
+      // pattern using GIF image.
+      cur_graph
+        .append('defs')
+        .append('pattern')
+          .attr('id', 'pattern-image')
+          .attr('patternUnits', 'userSpaceOnUse')
+          .attr('width', 20)
+          .attr('height', 20)
+        .append('svg:image')
+          .attr('width', 20)
+          .attr('height', 20)
+          .attr('xlink:href', 'img/pattern-1.gif');
+
+      // ----------------------------- DATASET IN FRONT -----------------------------
+      
+      // create area SVG object
+      var area = d3.svg.area()
+        .x(function(d) { return x(d.time); })
+        .y0(height)
+        .y1(function(d,i) {
+          return y(d[front_dataset]);
+      })
+      .interpolate("linear");
+      // draw the area on the chart
+      cur_graph.append("path")
+        .datum(data)
+        .attr("class", "area_" + front_dataset)
+        .attr("d", area);
+      // // create line SVG object
+      // var line = d3.svg.line()
+      //   .x(function(d) { return x(d.time); })
+      //   .y(function(d) { return y(d[front_dataset]); });
+      // // draw the line on the chart
+      // cur_graph.append("path")
+      //   .datum(data)
+      //   .attr("class", "line1")
+      //   .attr("d", line);
+
+      // ----------------------------- DATASET IN BACK -----------------------------
+      
+      // create area SVG object
+      var area = d3.svg.area()
+        .x(function(d) { return x(d.time); })
+        .y0(height)
+        .y1(function(d,i) {
+          return y(d[back_dataset]);
+      })
+      .interpolate("linear");
+      // draw the area on the chart
+      cur_graph.append("path")
+          .datum(data)
+          .attr("class", "area_" + back_dataset)
+          .attr("d", area);
+      // // create line SVG object
+      // var line = d3.svg.line()
+      //   .x(function(d) { return x(d.time); })
+      //   .y(function(d) { return y(d[back_dataset]); });
+      // // draw the line on the chart
+      // cur_graph.append("path")
+      //   .datum(data)
+      //   .attr("class", "line2")
+      //   .attr("d", line);
+
+      // ---------------------------------------------------------------------------
+
+      // Draw the X-axis of the graph.
+      cur_graph.append("g")
+          .attr("class", "x axis")
+          .attr("transform", "translate(0," + height + ")")
+          .call(xAxis);
+
+      // Draw the Y-axis of the graph.
+      cur_graph.append("g")
+          .attr("class", "y axis")
+          .call(yAxis)
+        .append("text")
+          .attr("transform", "rotate(-90)")
+          .attr("y", 6)
+          .attr("dy", ".71em")
+          .style("text-anchor", "end")
+          .attr("class", "axis-text")
+          .text("value");
+
+    }
+
+  </script>
+  
+  </body>
+</html>

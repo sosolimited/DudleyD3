@@ -1,0 +1,125 @@
+body {
+  font: 10px sans-serif;
+  color: black;
+}
+h1 {
+  text-transform: uppercase;
+  font-size: 3em;
+  background-color: black;
+  color: white;
+  padding: 10px;
+}
+h2 {
+  text-transform: uppercase;
+  font-size: 2em;
+  line-height: 0.3em;
+}
+p {
+  font-size: 1em;
+  font-weight: normal;
+}
+p.title {
+  font-size: 2em;
+  font-weight: bold;
+  text-transform: uppercase;
+  background-color: #CCC;
+  /*border: 1px black solid;*/
+  color: white;
+  padding: 10px;
+}
+span.chiefs {
+  color: #C60C30;
+}
+span.patriots {
+  color: #0D254C;
+}
+span.broncos {
+  color: #FF6319;
+}
+.graph_container {
+  margin: 0 auto;
+  width: 1000px;
+}
+.column1{
+  float: left;
+  width: 300px;
+}
+.column2{
+  margin-left: 50px;
+  float: left;
+  width: 300px;
+}
+.column3{
+  float: right;
+  width: 300px;
+}
+.entire_row{
+  float: left;
+  width: 300px;
+}
+.graph{
+  margin-top:50px;
+  margin-bottom:50px;
+}
+/* Controls color and size of label text for ticks on axes. */
+.axis {
+  font-size: 0.8em;
+  fill: #777;
+}
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #CCC;
+  shape-rendering: crispEdges;
+}
+.axis-text {
+  font-size: 1em;
+}
+.area_value1 {
+  /*fill: url(#first-gradient);*/
+  /*---*/
+  fill:#ff7c33;
+  /*stroke: #FF6319;*/
+  /*---*/
+  /*fill: url(#pattern-image);*/
+  /*---*/
+  /*fill: url(#diagonalHatch_value1);*/
+  /*opacity: 0.2;*/
+  /*---*/
+  stroke-width: 0px;
+  opacity: 0.5;
+}
+.area_value2 {
+  /*fill: url(#second-gradient);*/
+  /*---*/
+  fill:#ec414a;
+  /*stroke: #C60C30;*/
+  /*---*/
+  /*fill: url(#pattern-image);*/
+  /*---*/
+  /*fill: url(#diagonalHatch_value2);*/
+  /*opacity: 0.2;*/
+  /*---*/
+  stroke-width: 0px;
+  opacity: 0.5;
+}
+.line_afc {
+  fill: none;
+  stroke: #FF6319;
+  stroke-width: 1px;
+}
+.line_nfc {
+  fill: none;
+  stroke: #0D254C;
+  stroke-width: 1px;
+}
+.special_line1 {
+  fill: none;
+  stroke: #FF6319;
+  stroke-width: 1px;
+}
+.special_line2 {
+  fill: none;
+  stroke: #C60C30;
+  stroke-width: 1px;
+}
