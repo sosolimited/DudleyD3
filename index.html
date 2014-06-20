@@ -2,7 +2,7 @@
 <html>
   <meta charset="utf-8">
   <head>
-    <title>WGW-D3-Charts</title>
+    <title>DudleyD3 - Sosolimited</title>
     <link rel="stylesheet" type="text/css" href="css/style.css">
   </head>
   <body>
@@ -11,10 +11,7 @@
       <div id="game_title"><h1>Dudley D3 Dashboard</h1></div>
 
       <div id="graph_container_2" class=" graph_container full_row">
-        <span class="header_clicker">hide</span>
         <h2>Overall Requests/Day</h2>
-        <!-- <div id="graph_1"><p>smoothing : 41</p><p>time window : last 6 hours</p></div> -->
-        <span class="caption"></span>
         <div id="graph_1"></div>
       </div>
       
@@ -31,16 +28,6 @@
     var cur_teams = { "afc" : "none", "nfc" : "none" };
     var cur_colors = { "afc" : "black", "nfc" : "black" };
 
-    // Setup show/hide link for all graphs.
-    $(".header_clicker").click(function() { 
-      var _this = $(this);
-      var dom_charts = $(this).parent().find( "[id*='graph_']");         // select all sibling elements in this div that start with id="graph_"
-      // open/close them with a slide animation and change the show/hide text for the link.
-      dom_charts.slideToggle(function() {
-        if (_this.text() === "hide") { _this.text("show"); } else { _this.text("hide"); }
-      });
-    });
-
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - Vars : Time series charts - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     // to store the current chart's data
@@ -55,6 +42,8 @@
     // We have different parsing formats depending on the type of data: daily, hourly, by minute, etc.
     var parseDateFormat1 = d3.time.format("%Y,%m,%d,%H").parse;             // For data per hour. "%-" means it ignores padding, removing the need for zero-padding perhaps?
     var parseDateFormat2 = d3.time.format("%Y,%m,%d,%H,%M").parse;          // For data per minute.
+    var parseDateFormat = d3.time.format("%Y-%m-%dT%H:%M:%S").parse;          // For data per minute.
+
     // Setup X and Y scales.
     x = d3.time.scale()
         .range([0, width]);
@@ -103,7 +92,10 @@
     // For each chart, this array contains : [0] = the data url, [1] = the desired front dataset (the AFC team or NFC team), [2] = the desired back dataset (AFC or NFC), [3] = the parse format, (optional)[4] = the smoothing amount.
     // Some data urls are the live API, some are backed-up data files.
     var charts_data = [ 
-                        ["http://wgwapi.com/game/confidence?time=min&start=" + formattedStartDate + "&end=" +formattedEndDate, "nfc", "afc", 2, 20, true]
+                        // ["http://wgwapi.com/game/confidence?time=min&start=" + formattedStartDate + "&end=" +formattedEndDate, "nfc", "afc", 2, 20, true]
+                        // ["https://mayors24.cityofboston.gov/open311/v2/requests.json?page=1&page_size=10"]
+                        // ["http://sosolimited.com/superbowl/WGW-D3-Charts/data/data-nov7chiefsbroncos-tweets-timemin-num1440.json"]
+                        ["data/dudley-page=1&page_size=10.json"]
                       ];
     
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - Init : Time series charts - - -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -116,20 +108,7 @@
     // setup chart objects and data.
     function setup_charts() {
       
-      var already_done = false;     // so it only runs once.
-
       for (var i = 0; i < charts_data.length; i++) {
-
-        // Create SVG element for the current chart.
-
-
-
-        // console.log("--------------------------------- #graph_" + (i+1) + " SVG empty? = "+ d3.select("#graph_" + (i+1) + " svg").empty())
-        // Due to autorefresh button, must check if each chart's SVG exists already before creating it.
-        if (d3.select("#graph_" + (i+1) + " svg").empty() === false) {
-          d3.select("#graph_" + (i+1) + " svg").remove();
-        }
-        // if (d3.select("#graph_" + (i+1) + " svg").empty()) {
 
           var cur_chart = d3.select("#graph_" + (i+1) ).append("svg")
               .attr("width", width + margin.left + margin.right)
@@ -142,51 +121,61 @@
 
         // }
 
-        // Setup caption to add to the chart's title.
-        // Add string of the current datastream URL to the caption.
-        var query_text = "";
-        if (charts_data[i][0].substr(17) !== "") {
-          query_text = charts_data[i][0].substr(17);
-        } else {
-          query_text = "none";
-        }
-        // Add smoothing and time window to the caption.
-        if (charts_data[i][4] === 0) { var smoothing_caption = 0; }
-        else { var smoothing_caption = (charts_data[i][4] * 2 + 1); }
-        var graph_caption = "<p>query : " + query_text + "</p><p>smoothing : "+ smoothing_caption +"</p><p>time window : last 6 hours</p>"
-        // Write the caption to the DOM.
-        $("#graph_container_" + (i+2) + " span.caption").html( graph_caption );
-
-
         // Call the JSON data. For the data we currently have, value1 = Broncos (orange), and value2 = Chiefs (red).
         // Using a function/closure to localize "i" (and giving it another name, "this_i") so that "i" doesn't always end-up being the last index of the loop.
         (function(this_i){      //"localizing" i by using it in the inner function
           
-          if (charts_data[this_i][0].substr(0, 9) === "data/game" || charts_data[this_i][0].substr(0, 4) === "pos/") { create_special_chart(this_i); }
-          else {
-            d3.json(charts_data[this_i][0], function(error, json_data) {
-              // console.log("- - - - - - - - - - - - - - - - - - #"+ this_i +" ORIGINAL DATA : ")
-              // console.log(json_data);
-              
-              // Only call this once. Once data has returned from API, set teams and draw barcharts.
-              if (!already_done) {
-                already_done = true;
-                
-                // Set the current teams we are charting. Each call should return the same team anyway.
-                cur_teams = { "afc" : json_data.afc_team, "nfc" : json_data.nfc_team };
-                cur_colors = { "afc" : get_team_color(json_data.afc_team), "nfc" : get_team_color(json_data.nfc_team) };
-                // console.log("team AFC : "+ json_data.afc_team + " | team NFC : "+ json_data.nfc_team);
-                // console.log("color AFC : "+ get_team_color(json_data.afc_team) + " | color NFC : "+ get_team_color(json_data.nfc_team));
-                
-              }
-
-              // format current data strea and draw its single chart.
-              format_raw_data(json_data, charts[this_i], charts_data[this_i][1], charts_data[this_i][2], charts_data[this_i][3], charts_data[this_i][4], charts_data[this_i][5]);
-              // console.log("- - - - - - - - - - - - - - - - - - #"+ this_i +" D3-FORMATTED DATA : ")
-              // console.log(data);
-              
+          d3.json(charts_data[this_i][0], function(error, json_data) {
+            
+            console.log("- - - - - - - - - - - - - - - - - - #"+ this_i +" DATA : ")
+            console.log(json_data);
+            
+            // - - - - MAKE CHART HERE
+            json_data.map(function (cur_row, index) {
+              console.log("MAP -- cur_row: "+ cur_row +" | index: "+ index);
+              console.log("requested_datetime 1 = "+ cur_row.requested_datetime);
+              console.log(typeof cur_row.requested_datetime);
+              cur_row.requested_datetime = cur_row.requested_datetime.slice(0, -6);     // remove timezone at end.
+              console.log("requested_datetime 2 = "+ cur_row.requested_datetime);
+              cur_row.requested_datetime = parseDateFormat(String(cur_row.requested_datetime));
             });
-          }
+
+            x.domain([
+              d3.min(json_data, function(d) { return d.requested_datetime; }),
+              d3.max(json_data, function(d) { return d.requested_datetime; })
+            ]);
+            y.domain([
+              d3.min(json_data, function(d) { return d.service_request_id; }),
+              d3.max(json_data, function(d) { return d.service_request_id; })
+            ]);
+
+            var line = d3.svg.line()
+              .x(function(d) { return x(d.requested_datetime); })
+              .y(function(d) { return y(d.service_request_id); })
+              .interpolate("basis");
+            charts[this_i].append("path")
+              .datum(json_data)
+              .attr("class", "line")
+              .attr("d", line);
+            });
+
+            // Draw the X-axis of the graph.
+            charts[this_i].append("g")
+                .attr("class", "x axis")
+                .attr("transform", "translate(0," + height + ")")
+                .call(xAxis);
+
+            // Draw the Y-axis of the graph.
+            charts[this_i].append("g")
+                .attr("class", "y axis")
+                .call(yAxis)
+              .append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("y", 6)
+                .attr("dy", ".71em")
+                .style("text-anchor", "end")
+                .attr("class", "axis-text")
+                .text("value");
           
         }(i));    //pass in our "i" from the loop
       }
@@ -576,363 +565,6 @@
 
     }
     
-    // function intersect(a, b) {
-    //     var t;
-    //     if (b.length > a.length) t = b, b = a, a = t; // indexOf to loop over shorter
-    //     return a.filter(function (e) {
-    //         console.log("----- ")
-    //           console.log(b)
-    //           console.log(e)
-    //         if (b.indexOf(e["time"]) !== -1) return true;
-    //     });
-    // }
-
-
-    // for charts that are exceptions, we have custom treatment here.
-    function create_special_chart(chart_id) {
-      var cur_chart_url = charts_data[chart_id][0];
-
-      // 
-      if (cur_chart_url.substr(0, 11) === "pos/tweets") {
-        var pos_url = "http://wgwapi.com/game/pos?time=min&num=360"; 
-        var tweets_url = "http://wgwapi.com/game/tweets?time=min&num=360";
-
-        // get pos data
-        d3.json(pos_url, function(error, json_data_pos) {
-          // get neg data
-          d3.json(tweets_url, function(error, json_data_tweets) {
-            
-            // create array container for result.
-            var data_pos_over_tweets = {};
-            data_pos_over_tweets["afc"] = [];
-            data_pos_over_tweets["nfc"] = [];
-            // smooth POS and TWEETS differently.
-            json_data_pos.afc = moving_window_average(json_data_pos.afc, 5);
-            json_data_pos.nfc = moving_window_average(json_data_pos.nfc, 5);
-            json_data_tweets.afc = moving_window_average(json_data_tweets.afc, 10);
-            json_data_tweets.nfc = moving_window_average(json_data_tweets.nfc, 10);
-            // console.log("---- POS.afc:")
-            // console.log(json_data_pos.afc)
-            // console.log("---- TWEETS.afc:")
-            // console.log(json_data_tweets.afc)
-
-            // OUR PROBLEM: POS and TWEETS can return a diff amount of values each (happens with other API query, actually).
-            // Since we want to divide POS values by TWEETS values that both have the same time stamp, we must start by filtering our data to match-up valuesup sequentially by time,
-            // making sure that for both json_data_pos.afc and json_data_tweets.afc, the same time stamps will be stored at the same index in their respective arrays.
-            // Because there might be holes in the data, we can either remove values that exist in one array but not the other, or fill the index in the array that does not have it with a zero value.
-            // Right now, we are taking that second approach, because that way we are truthful about there not being any data for that time (whereas the API simply doesn't create an entry for empty times - TO CORRECT ?).
-
-            // TODO: our array intersection comparison is not correct right now. We use the times in POS to search for times in TWEETS, but not vice versa.
-
-            // 1 - Compare the POS array to the TWEETS, push matching time values in TWEETS to a result array. Also, for missing times, push a a zero value entry.
-            // 1.1 - Compare AFC data.
-            // json_data_pos.afc.push({"value":110,"time":[2013,10,20,0,0,3]});                 // DEV: add a value to one of the arrays to test if loop below works when they are unequal length.
-            var data_matching_tweets_afc = [];
-            // loop over all POS entries and try to find a matching time entry in TWEETS.
-            json_data_pos.afc.forEach(function(cur_row_pos) {
-              var pos_time = String(cur_row_pos.time);
-              var create_zero = true;                                                           // default to true means we assume there is no match for this time and create a zero value entry.
-              // console.log("* * * * * * * * * * * * * * * * * pos_time = "+ pos_time)  
-              // loop over all TWEETS to find a time value that matches the the time of current POS value.
-              json_data_tweets.afc.forEach(function(cur_row_tweets) {
-                var tweet_time = String(cur_row_tweets.time);
-                // console.log("* * * * tweet_time = "+ tweet_time)
-                // if we find a match...
-                if (pos_time === tweet_time) {
-                  create_zero = false;                                                          // dont create a zero value entry
-                  // console.log("* * * * MATCH cur_row_tweets = ")  
-                  // console.log(cur_row_tweets);
-                  data_matching_tweets_afc.push(cur_row_tweets);
-                }
-              });
-              // push a zero value entry if there wasn't a match for this POS value.
-              if (create_zero === true) {
-                var empty_value = {};
-                empty_value.time = pos_time;
-                empty_value.value = 0;
-                data_matching_tweets_afc.push(empty_value);
-              }
-            });
-            // console.log("- - - - - - data_matching_tweets_afc:")
-            // console.log(data_matching_tweets_afc);
-            // 1.2 - Compare NFC data.
-            var data_matching_tweets_nfc = [];
-            json_data_pos.nfc.forEach(function(cur_row_pos) {
-              var pos_time = String(cur_row_pos.time);
-              var create_zero = true;                                                           // default to true means we assume there is no match for this time and create a zero value entry.
-              // console.log("* * * * * * * * * * * * * * * * * pos_time = "+ pos_time)  
-              json_data_tweets.nfc.forEach(function(cur_row_tweets) {
-                var tweet_time = String(cur_row_tweets.time);
-                // console.log("* * * * tweet_time = "+ tweet_time)
-                if (pos_time === tweet_time) {
-                  create_zero = false;                                                          // dont create a zero value entry
-                  // console.log("* * * * MATCH cur_row_tweets = ")  
-                  // console.log(cur_row_tweets);
-                  data_matching_tweets_nfc.push(cur_row_tweets);
-                }
-              });
-              if (create_zero === true) {
-                var empty_value = {};
-                empty_value.time = pos_time;
-                empty_value.value = 0;
-                data_matching_tweets_nfc.push(empty_value);
-              }
-            });
-            // console.log("- - - - - - data_matching_tweets_nfc:")
-            // console.log(data_matching_tweets_nfc);
-
-            // 2 - Calculate POS/TWEETS using intersecting data.
-            // 2.1 - For AFC data.
-            json_data_pos.afc.map(function (cur_row, index) {
-              data_pos_over_tweets["afc"][index] = {};
-              data_pos_over_tweets["afc"][index].time = cur_row.time;
-              data_pos_over_tweets["afc"][index].value = (cur_row.value / json_data_tweets.afc[index].value);
-              // console.log("A----- cur_row.value = "+ cur_row.value)
-              // console.log("B----- json_data_tweets.afc[index].value = "+ json_data_tweets.afc[index].value)
-            });
-            // console.log("- - - - - - data_pos_over_tweets[afc]:")
-            // console.log(data_pos_over_tweets["afc"]);
-            // 2.2 - For NFC data.
-            json_data_pos.nfc.map(function (cur_row, index) {
-              data_pos_over_tweets["nfc"][index] = {};
-              data_pos_over_tweets["nfc"][index].time = cur_row.time;
-              data_pos_over_tweets["nfc"][index].value = (cur_row.value / json_data_tweets.nfc[index].value);
-              // console.log("A----- cur_row.value = "+ cur_row.value)
-              // console.log("B----- json_data_tweets.afc[index].value = "+ json_data_tweets.afc[index].value)
-            });
-            // console.log("- - - - - - data_pos_over_tweets[nfc]:")
-            // console.log(data_pos_over_tweets["nfc"]);
-            
-            // 3 - Send final smoothed POS/TWEETS data to be formatted and charted.
-            format_raw_data(data_pos_over_tweets, charts[chart_id], charts_data[chart_id][1], charts_data[chart_id][2], charts_data[chart_id][3]); 
-
-          });
-        });
-
-      }
-      // special chart that displays an alternate kind of "confidence" : pos / (pos + neg).
-      if (cur_chart_url.substr(0, 11) === "pos/pos+neg") {
-        
-        // set data urls depending on the type specified in charts_data.
-        var pos_url, neg_url;
-        if (cur_chart_url === "pos/pos+neg_1") { pos_url = "http://wgwapi.com/game/pos?time=min&start=" + formattedStartDate + "&end=" +formattedEndDate; neg_url = "http://wgwapi.com/game/neg?time=min&start=" + formattedStartDate + "&end=" +formattedEndDate }
-        else if (cur_chart_url === "pos/pos+neg_2") { pos_url = "http://wgwapi.com/game/pos?time=min&num=480"; neg_url = "http://wgwapi.com/game/neg?time=min&num=480" }
-
-        // get pos data
-        d3.json(pos_url, function(error, json_data_pos) {
-          // get neg data
-          d3.json(neg_url, function(error, json_data_neg) {
-            // console.log("* * * * * * json_data_pos")
-            // console.log(json_data_pos);
-            // console.log("* * * * * * json_data_neg")
-            // console.log(json_data_neg);
-
-
-
-
-
-
-
-            var data_pos_over_pos_plus_neg = {};                                        // parent object for both AFC's pos/pos+neg and NFC's pos/pos+neg arrays
-            data_pos_over_pos_plus_neg["afc"] = [];                                     // array for AFC's pos/pos+neg
-            data_pos_over_pos_plus_neg["nfc"] = [];                                     // array for NFC's pos/pos+neg
-            
-            // TODO: make a compact loop that to encapsulate all these map functions below.
-            // TODO: make new map function where values from both Pos and Neg are added orderly by time (the key). Remove times that are missing a value in either Pos or Neg.
-
-            // Calculate AFC's (pos / pos+neg).
-            // Get pos data.
-            // console.log("AFC POS DATA - - - - - - - ")
-            json_data_pos.afc.map(function (cur_row, index) {
-              // then copy current pos value into the combined pos+neg array
-              data_pos_over_pos_plus_neg["afc"][index] = {};                      // initialize this object
-              data_pos_over_pos_plus_neg["afc"][index].time = cur_row.time;
-              data_pos_over_pos_plus_neg["afc"][index].value = cur_row.value;
-            });
-            // Get neg data.
-            // console.log("AFC NEG DATA - - - - - - - ")
-            json_data_neg.afc.map(function (cur_row, index) {
-              // then add current neg value to the pos value already in the combined pos+neg array
-              var pos = data_pos_over_pos_plus_neg["afc"][index].value;
-              var pos_plus_neg = pos + cur_row.value;
-              // data_pos_over_pos_plus_neg["afc"][index].value = pos / pos_plus_neg;
-
-
-
-              // dev_jc_jan3
-              // If pos_plus_neg is zero, it will cause pos/pos+neg to be NaN. If that is the case, we use the previous result of pos/pos+neg.
-              if (pos_plus_neg === 0) {
-                // console.log("t- AFC pos_plus_neg = ZERO | pos/pos_plus_neg = "+ pos / pos_plus_neg)
-                // Attempt to use previous pos/pos+neg (NB: unless current index=0, in that case use the arbitrary value of 0.5).
-                if (index !== 0) { 
-                  previous_result = data_pos_over_pos_plus_neg["afc"][index-1].value; 
-                } else { 
-                  // console.log("t- - AFC pos_plus_neg = ZERO | INDEX = ZERO | USING 0.5");
-                  previous_result = 0.5; 
-                }
-                // Check if previous result isn't itself NaN or whatever. If it is unusable, use arbitrary value of 0.5.
-                if ( isNaN(previous_result) !== true || previous_result !== undefined ) {
-                  // console.log("t- AFC pos_plus_neg = ZERO | USING PREVIOUS = "+ previous_result);
-                  data_pos_over_pos_plus_neg["afc"][index].value = previous_result;
-                } else {
-                  // console.log("t- - AFC pos_plus_neg = ZERO | previous = ZERO");
-                  data_pos_over_pos_plus_neg["afc"][index].value = 0.5;
-                }
-              }
-              // Else, just use pos_plus_neg as denominator directly.
-              else {
-                // console.log("t- - - AFC pos_plus_neg NORMAL");
-                data_pos_over_pos_plus_neg["afc"][index].value = pos / pos_plus_neg;
-              }
-              // DEV
-              // if (data_pos_over_pos_plus_neg["afc"][index].value > 1 ) {
-              //   console.log("t- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - AFC > 1")
-              // }
-
-
-
-
-              // console.log("t--- pos = " + pos)
-              // console.log("t--- pos_plus_neg = " + pos_plus_neg)
-              // console.log("t--- data_pos_over_pos_plus_neg[index].value = " + data_pos_over_pos_plus_neg[index].value)
-            });
-            // Calculate NFC's (pos / pos+neg).
-            // Get pos data.
-            // console.log("NFC POS DATA - - - - - - - ")
-            json_data_pos.nfc.map(function (cur_row, index) {
-              // then copy current pos value into the combined pos+neg array
-              data_pos_over_pos_plus_neg["nfc"][index] = {};                      // initialize this object
-              data_pos_over_pos_plus_neg["nfc"][index].time = cur_row.time;
-              data_pos_over_pos_plus_neg["nfc"][index].value = cur_row.value;
-            });
-            // Get pos data.
-            // console.log("NFC NEG DATA - - - - - - - ")
-            json_data_neg.nfc.map(function (cur_row, index) {
-              // then add current neg value to the pos value already in the combined pos+neg array
-              var pos = data_pos_over_pos_plus_neg["nfc"][index].value;
-              var pos_plus_neg = pos + cur_row.value;
-              // data_pos_over_pos_plus_neg["nfc"][index].value
-
-
-
-
-              // dev_jc_jan3
-              // If pos_plus_neg is zero, it will cause pos/pos+neg to be NaN. If that is the case, we use the previous result of pos/pos+neg.
-              if (pos_plus_neg === 0) {
-                // console.log("t- NFC pos_plus_neg = ZERO | pos/pos_plus_neg = "+ pos / pos_plus_neg)
-                // Attempt to use previous pos/pos+neg (NB: unless current index=0, in that case use the arbitrary value of 0.5).
-                if (index !== 0) { 
-                  previous_result = data_pos_over_pos_plus_neg["nfc"][index-1].value; 
-                } else { 
-                  // console.log("t- - - - - NFC pos_plus_neg = ZERO | INDEX = ZERO | USING 0.5");
-                  previous_result = 0.5; 
-                }
-                // Check if previous result isn't itself NaN or whatever. If it is unusable, use arbitrary value of 0.5.
-                if ( isNaN(previous_result) !== true || previous_result !== undefined ) {
-                  // console.log("t- NFC pos_plus_neg = ZERO | USING PREVIOUS = "+ previous_result);
-                  data_pos_over_pos_plus_neg["nfc"][index].value = previous_result;
-                } else {
-                  // console.log("t- - - - - NFC pos_plus_neg = ZERO | previous = ZERO | USING 0.5");
-                  data_pos_over_pos_plus_neg["nfc"][index].value = 0.5;
-                }
-              }
-              // Else, just use pos_plus_neg as denominator directly.
-              else {
-                // console.log("t- - - NFC pos_plus_neg NORMAL");
-                data_pos_over_pos_plus_neg["nfc"][index].value = pos / pos_plus_neg;
-              }
-              // DEV
-              // if (data_pos_over_pos_plus_neg["nfc"][index].value > 1 ) {
-              //   console.log("t- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - NFC > 1")
-              // }
-
-
-
-
-              // console.log("t--- pos = " + pos)
-              // console.log("t--- pos_plus_neg = " + pos_plus_neg)
-              // console.log("t--- data_pos_over_pos_plus_neg[index].value = " + data_pos_over_pos_plus_neg[index].value)
-            });
-            // console.log("data_pos_over_pos_plus_neg DATA - - - - - - - ");
-            // console.log(data_pos_over_pos_plus_neg);
-
-            // send object of AFC and NFC data to formatting and chart drawing.
-            format_raw_data(data_pos_over_pos_plus_neg, charts[chart_id], charts_data[chart_id][1], charts_data[chart_id][2], charts_data[chart_id][3], charts_data[chart_id][4], charts_data[chart_id][5]); 
-
-
-
-
-
-
-
-
-          });
-        });
-      }
-      // special chart that displays game scoring data of November 17, Chiefs VS Broncos.
-      if (cur_chart_url.substr(0, 9) === "data/game") {
-        var cur_chart = charts[chart_id];
-
-        d3.tsv(cur_chart_url, function(error, data) {                            // manually collected data
-
-          var parseDateFormat3 = d3.time.format("%M,%S").parse;
-          // Data parsing.
-          data.forEach(function(d) {
-            d.time = parseDateFormat3(d.time);
-            d["denver"] = +d["denver"];
-            d["newengland"] = +d["newengland"];
-          });
-
-          // var formatTime = d3.time.format("%H:%S"),
-          //     formatMinutes = function(d) { return formatTime(new Date(2012, 0, 1, 0, d)); };
-          // var xAxis_game = d3.svg.axis()
-          //   .scale(x)
-          //   .orient("bottom")
-          //   .ticks(20)
-          //   .tickFormat(formatMinutes);
-
-          // Domains.
-          x.domain(d3.extent(data, function(d) { return d.time; }));
-          // x.domain([0,75]);
-          y.domain([0,
-            d3.max(data, function(d) { return Math.max(d["denver"], d["newengland"]); })
-          ]);
-          // Draw the lines.
-          var line1 = d3.svg.line()
-            .interpolate("step-after")
-            .x(function(d) { return x(d.time); })
-            .y(function(d) { return y(d["denver"]); });
-          var line2 = d3.svg.line()
-            .interpolate("step-after")
-            .x(function(d) { return x(d.time); })
-            .y(function(d) { return y(d["newengland"]); });
-          cur_chart.datum(data);                              // why is this necessary?
-          cur_chart.append("path")
-            .attr("class", "line_afc")
-            .attr("d", line1);
-          cur_chart.append("path")
-            .attr("class", "line_nfc")
-            .attr("d", line2);
-          // Draw the X-axis of the graph.
-          cur_chart.append("g")
-              .attr("class", "x axis")
-              .attr("transform", "translate(0," + height + ")")
-              // .call(xAxis_game);
-              .call(xAxis);
-          // Draw the Y-axis of the graph.
-          cur_chart.append("g")
-              .attr("class", "y axis")
-              .call(yAxis)
-            .append("text")
-              .attr("transform", "rotate(-90)")
-              .attr("y", 6)
-              .attr("dy", ".71em")
-              .style("text-anchor", "end")
-              .attr("class", "axis-text")
-              .text("value");
-        });
-      }
-    }
   </script>
   
   </body>
