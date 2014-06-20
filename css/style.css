@@ -284,6 +284,9 @@ span.niners {
 .bar text {
   fill: black;
 }
+.bar {
+  fill: black;
+}
 /* Autorefresh toggle button */
 #autorefresh_toggle {
   float: right;
@@ -348,4 +351,8 @@ span.niners {
 
 .onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-switch {
     right: 0px; 
+}
+/* NEW DUDLEY STUFF */
+.dot {
+  stroke: #000;
 }
