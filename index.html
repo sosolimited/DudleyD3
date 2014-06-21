@@ -32,9 +32,6 @@
 
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - Vars : Time series charts - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-    // to store the current chart's data
-    var data;
-
     // Our Date parsing formats.
     // TODO: right now the way we handle different data streams is by ignorning whole unit measures (ie. 15 minutes, single minutes) instead of treating individual null values. Need to add handling for that.
     // We have different parsing formats depending on the type of data: daily, hourly, by minute, etc.
@@ -65,43 +62,143 @@
       
       for (var i = 0; i < charts_data.length; i++) {
 
-        // Create the DOM chart element.
-        $(".main_container").append("<div id='graph_container_"+ i +"' class='graph_container full_row'><h2>"+ charts_data[i][2] +"</h2><div id='graph_"+ i +"'></div></div>");
-
-        // Set the chart's dimensions.
-        var margin = {top: 30, right: 30, bottom: 30, left: 40};
-        var width = charts_data[i][3] - margin.left - margin.right;
-        var height = charts_data[i][4] - margin.top - margin.bottom;
-
-        // Set the current chart var.
-        var cur_chart = d3.select("#graph_" + i).append("svg")
-            .attr("width", width + margin.left + margin.right)
-            .attr("height", height + margin.top + margin.bottom)
-            .attr("top", 100)
-          .append("g")                                // "g" is a SVG group element for applying properties to many objects at once.
-            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");  
-        charts[i] = cur_chart;
-        console.log(cur_chart);
-
-        // Call the JSON data. For the data we currently have, value1 = Broncos (orange), and value2 = Chiefs (red).
         // Using a function/closure to localize "i" (and giving it another name, "this_i") so that "i" doesn't always end-up being the last index of the loop.
         (function(this_i){      //"localizing" i by using it in the inner function
-          
+
+          // Create the DOM chart element.
+          $(".main_container").append("<div id='graph_container_"+ i +"' class='graph_container full_row'><h2>"+ charts_data[i][2] +"</h2><div id='graph_"+ i +"'></div></div>");
+
+          // Set the chart's dimensions.
+          var margin = {top: 30, right: 30, bottom: 30, left: 40};
+          var width = charts_data[i][3] - margin.left - margin.right;
+          var height = charts_data[i][4] - margin.top - margin.bottom;
+
+          // Set the current chart var.
+          var cur_chart = d3.select("#graph_" + i).append("svg")
+              .attr("width", width + margin.left + margin.right)
+              .attr("height", height + margin.top + margin.bottom)
+              .attr("top", 100)
+            .append("g")                                // "g" is a SVG group element for applying properties to many objects at once.
+              .attr("transform", "translate(" + margin.left + "," + margin.top + ")");  
+          charts[i] = cur_chart;
+          console.log(cur_chart);
+  
+          // Load the JSON data.
           d3.json(charts_data[this_i][0], function(error, json_data) {
             
             console.log("- - - - - - - - - - - - - - - - - - #"+ this_i +" DATA : ")
             console.log(json_data);
 
             if (charts_data[this_i][1] == "activity"){
+              
+              // 1) --- Custom-format our data into an array of objects as {day, numOfRequestsThatDay}.
+
+              var parseDate = d3.time.format("%Y-%m-%d%Z").parse;
+
+              // Build the array that counts requests per day.
+              var counts = {};
+              json_data.forEach(function(row) {
+                  // Format the date to represent a day.
+                  var date = row.requested_datetime.slice(0, -3) + row.requested_datetime.slice(-2);     // remove the colon ':' from the timezone at the end.
+                  date = date.slice(0, 10) + date.slice(-5);     // keep only the date (year,month,day,timezone) ; remove the hour+minute+seconds.
+                  date = parseDate(date);                                  //TODO: timezone isn't working correctly....
+                  
+                  // Store the date with its count (of how many times it was encountered until now).
+                  if (!counts[date]) {
+                      counts[date] = 0;
+                  }
+                  counts[date]++;
+              });
+              // Use the counts array to build a proper array of data objects {day, count}.
+              var data = [];
+              // Loop thru each key in counts, and push the key as item #1 and the counts as item #2.
+              Object.keys(counts).forEach(function(key) {
+                  // The 'key' in counts is the date. We must convert it back to a Date obj because this loop casts it to a string (weirdly).
+                  key = new Date(key);
+                  data.push({
+                      requested_datetime: key,
+                      requests: counts[key]
+                  });
+              });
+              
+              console.log("counts: ");
+              console.log(counts);
+              console.log("data PRE-SORT: ");
+              console.log(data);
+
+              // A comparison funciton that is used to sort the dates in ascending order (oldest to newest).
+              var date_sort_asc = function (date1, date2) {
+                if (date1.requested_datetime > date2.requested_datetime) return 1;
+                if (date1.requested_datetime < date2.requested_datetime) return -1;
+                return 0;
+              };
+              
+              // Sort the dates (because d3.extent() in domain() below expects items to be sorted).
+              data.sort(date_sort_asc);
+
+              // Copy new data back into json_data for convenience (so all charts use json_data for building their chart).
+              json_data = data.slice();
+              
+              console.log("json_data POST-SORT: ");
+              console.log(json_data);
+
+              // 2) --- Now we can create the chart.
+              
+              var x = d3.time.scale()
+                .range([0, width])
+                .domain(d3.extent(json_data, function(d) { return d.requested_datetime; }));
+
+              console.log("* * * * * * * "+ height);
+              console.log("* * * * * * * "+ charts_data[this_i][4]);
+              console.log("* * * * * * * "+ this_i);
+              var y = d3.scale.linear()
+                  .range([height, 0])
+                  .domain([0, d3.max(json_data, function(d) { return d.requests; })]);
+
+              var xAxis = d3.svg.axis()
+                  .scale(x)
+                  .orient("bottom");
+
+              var yAxis = d3.svg.axis()
+                  .scale(y)
+                  .orient("left")
+                  .ticks(10, "%");
+
+              charts[this_i].append("g")
+                  .attr("class", "x axis")
+                  .attr("transform", "translate(0," + height + ")")
+                  .call(xAxis);
+
+              charts[this_i].append("g")
+                  .attr("class", "y axis")
+                  .call(yAxis)
+                .append("text")
+                  .attr("transform", "rotate(-90)")
+                  .attr("y", 6)
+                  .attr("dy", ".71em")
+                  .style("text-anchor", "end")
+                  .text("Date");
+
+              charts[this_i].selectAll(".bar")
+                  .data(json_data)
+                .enter().append("rect")
+                  .attr("class", "bar")
+                  .attr("x", function(d) { return x(d.requested_datetime); })
+                  .attr("width", 2)
+                  .attr("y", function(d) { return y(d.requests); })
+                  .attr("height", function(d) { return height - y(d.requests); });
 
             }
             // - - - - MAKE CHART: Location Long/Lat scatterplot
             else if (charts_data[this_i][1] == "location"){
+              
               var x = d3.scale.linear()
-                .range([0, width]);
+                .range([0, width])
+                .domain(d3.extent(json_data, function(d) { return d.lat; })).nice();
 
               var y = d3.scale.linear()
-                .range([height, 0]);
+                .range([height, 0])
+                .domain(d3.extent(json_data, function(d) { return d.long; })).nice();
 
               var xAxis = d3.svg.axis()
                   .scale(x)
@@ -116,8 +213,8 @@
                 d.long = +d.long;
               });
 
-              x.domain(d3.extent(json_data, function(d) { return d.lat; })).nice();
-              y.domain(d3.extent(json_data, function(d) { return d.long; })).nice();
+              // x.domain(d3.extent(json_data, function(d) { return d.lat; })).nice();
+              // y.domain(d3.extent(json_data, function(d) { return d.long; })).nice();
 
               charts[this_i].append("g")
                   .attr("class", "x axis")
