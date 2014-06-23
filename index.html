@@ -25,7 +25,8 @@
     
     var charts_data = [ 
                         // ["https://mayors24.cityofboston.gov/open311/v2/requests.json?page=3&page_size=250", "activity", "test", 950, 400],
-                        ["data/dudley-june23-750results-manuallycollated.json", "activity", "Requests per hour : 750 items (~6 days)", 950, 400],
+                        // ["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood", "Requests per hour : 750 items (~6 days)", 950, 400],
+                        ["data/dudley-june23-750results-manuallycollated.json", "activity/hour", "Requests per hour : 750 items (~6 days)", 950, 400],
                         ["data/dudley-june23-750results-manuallycollated.json", "location", "Request locations : 750 items (~6 days)", 950, 950]
                       ];
     
@@ -69,7 +70,7 @@
             console.log(json_data);
 
             // - - - - MAKE CHART: Request per hour.
-            if (charts_data[this_i][1] == "activity"){
+            if (charts_data[this_i][1] == "activity/hour"){
               
               // 1) --- Custom-format our data into an array of objects as {hour, numOfRequestsThatHour}.
 
