@@ -28,7 +28,7 @@
                         ["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood", "Requests per neighborhood : 750 items (~6 days)", 950, 400],
                         ["data/dudley-june23-750results-manuallycollated.json", "activity/hour", "Requests per hour : 750 items (~6 days)", 950, 400],
                         ["data/dudley-june23-750results-manuallycollated.json", "location", "Request locations : 750 items (~6 days)", 950, 950],
-                        ["data/dudley-june23-750results-manuallycollated.json", "activity/category", "Requests per category : 750 items (~6 days)", 950, 400]
+                        ["data/dudley-june23-750results-manuallycollated.json", "activity/category", "Requests per category : 750 items (~6 days)", 950, 500]
                       ];
     
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - Init : Time series charts - - -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -79,10 +79,11 @@
             // - - - - MAKE CHART: Request Category, pie chart.
             else if (charts_data[this_i][1] == "activity/category"){
               
-              console.log(" - - - - - - - Colin's Pie Start");
-              
+              //---"counts" array used to create Data array "catData"---
               var counts = [];
               var catData = [];
+
+              //---Build Arrays step 1---
               json_data.forEach(function(row) {
                 
                 var category = row.service_name;
@@ -96,41 +97,82 @@
 
               });
 
+              //---Build Arrays step 2---
               catData.forEach(function(value) {
                 value.count = counts[value.name];
               });
-              
-              console.log(counts);
-              console.log(catData);
 
-              var color = d3.scale.ordinal()
-                  .range(["#98abc5", "#8a89a6", "#7b6888", "#6b486b", "#a05d56", "#d0743c", "#ff8c00"]);
+              //---Create Pie Chart---
+              var radius = height - 210,
+                  labelr = radius + 10, // Label distance from center.
+                  posX = width/2,
+                  posY = height/2;
 
+              var color = d3.scale.category20();
+
+              //Arc Slice Template Element
               var arc = d3.svg.arc()
-                .outerRadius(100)
+                .outerRadius(radius)
                 .innerRadius(0);
 
+              //Pie Charts use a layout in D3  
               var pie = d3.layout.pie()
                   .sort(null)
                   .value(function(d) { return d.count; });
 
+              //Pass in Data and position new group.
               var g = cur_chart.selectAll(".arc")
                   .data(pie(catData))
                 .enter().append("g")
-                  .attr("transform", "translate(" + 100 + "," + 100 + ")")
+                  .attr("transform", "translate(" + posX + "," + posY + ")")
                   .attr("class", "arc");
 
               g.append("path")
                 .attr("d", arc)
                 .style("fill", function(d) { return color(d.data.count); });
 
+              //--Labels--
               g.append("text")
-                .attr("transform", function(d) { return "translate(" + arc.centroid(d) + ")"; })
+                .attr("transform", function(d) {
+                    //--Math for Labels--
+                    var c = arc.centroid(d),
+                        x = c[0],
+                        y = c[1],
+                        // pythagorean theorem for hypotenuse
+                        h = Math.sqrt(x*x + y*y);
+                    return "translate(" + (x/h * labelr) +  ',' +
+                       (y/h * labelr) +  ")"; 
+                })
                 .attr("dy", ".35em")
-                .style("text-anchor", "middle")
-                .text(function(d) { return d.count; });
-   
-              console.log(" - - - - - - - Colin's Pie End");
+                .style("text-anchor", function(d) {
+                    // are we past the center?
+                    return (d.endAngle + d.startAngle)/2 > Math.PI ?
+                        "end" : "start";
+                })
+                .text(function(d) {
+                  //Math for percentage with 1 decimal point. 
+                  return Math.round(((d.endAngle - d.startAngle)/(2*Math.PI))*1000)/10 + "%";
+                });
+
+              //Ledgend copied from JC's work. "d" has been manipulated for current data set.
+              var legend = charts[this_i].selectAll(".legend")
+                    .data(catData)
+                  .enter().append("g")
+                    .attr("class", "legend")
+                    .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
+
+              legend.append("rect")
+                  .attr("x", width - 18)
+                  .attr("width", 18)
+                  .attr("height", 18)
+                  .style("fill", function(d) { return color(d.count); });
+
+              legend.append("text")
+                  .attr("x", width - 24)
+                  .attr("y", 9)
+                  .attr("dy", ".35em")
+                  .style("text-anchor", "end")
+                  .text(function(d) { return d.name; });
 
             }
             // - - - - MAKE CHART: Request per hour, bar chart.
