@@ -76,20 +76,101 @@
               // Import GEOjson data of Boston neighborhoods.
               d3.json("data/boston_neighborhoods.geojson", function(error, geojson) {
 
+                // 1) --- Custom-format our data into an array of objects as {neighborhood, numRequests}.
+
                 console.log("GEOJSON");
                 console.log(geojson);
 
-                // Determine what neighborhood the request made in.
+                // Build the array that counts the number of requests per neighborhood.
+                var counts = {};
                 var parser = new OpenLayers.Format.GeoJSON();
                 var vectors = parser.read(geojson);
-                var lat = 42.334154;
-                var lon = -71.076007;
-                var point = new OpenLayers.Geometry.Point(lon, lat);
-                for( var i = 0; i < vectors.length; i++ ){
-                    if(vectors[i].geometry.intersects(point)){
-                       alert(vectors[i].attributes['name']);
+                var lat, lon, point, neighborhood = "Unknown";
+                json_data.forEach(function(row) {
+                    lat = row.lat;
+                    lon = row.long;
+                    point = new OpenLayers.Geometry.Point(lon, lat);
+                    
+                    //TODO: this loop is EXTREMELY inefficient, takes one minuted to parse all the data...
+                    for( var i = 0; i < vectors.length; i++ ){
+                        if(vectors[i].geometry.intersects(point)){
+                           neighborhood = vectors[i].attributes['name'];
+                           console.log(neighborhood);
+                        }
                     }
-                }
+
+                    // Store the neighborhood with its count (of how many times it was encountered until now).
+                    if (!counts[neighborhood]) {
+                        counts[neighborhood] = 0;
+                    }
+                    counts[neighborhood]++;
+                });
+
+                console.log("NEIGHBORHOOD- counts");
+                console.log(counts);
+
+                // Use the counts array to build a proper array of data objects {neighborhood, count}.
+                var data = [];
+                // Loop thru each key in counts, and push the key as item #1 and the counts as item #2.
+                Object.keys(counts).forEach(function(key) {
+                    data.push({
+                        neighborhood: key,
+                        numRequests: counts[key]
+                    });
+                });
+
+                console.log("NEIGHBORHOOD- data PRE-SORT: ");
+                console.log(data);
+
+                // A comparison funciton that is used to sort the dates in ascending order (oldest to newest).
+                var date_sort_asc = function (neighborhood1, neighborhood2) {
+                  if (neighborhood1.neighborhood > neighborhood2.neighborhood) return 1;
+                  if (neighborhood1.neighborhood < neighborhood2.neighborhood) return -1;
+                  return 0;
+                };
+                
+                // Sort the dates (because d3.extent() in domain() below expects items to be sorted).
+                data.sort(date_sort_asc);
+
+                // Copy new data back into json_data for convenience (so all charts use json_data for building their chart).
+                json_data = data.slice();
+                
+                console.log("NEIGHBORHOOD- json_data POST-SORT: ");
+                console.log(json_data);
+
+
+                // 2) --- Now we can create the chart.
+                
+                var radius = Math.min(width, height) / 2;
+
+                var color = d3.scale.ordinal()
+                    .range(["#98abc5", "#8a89a6", "#7b6888", "#6b486b", "#a05d56", "#d0743c", "#ff8c00"]);
+
+                var arc = d3.svg.arc()
+                    .outerRadius(radius - 10)
+                    .innerRadius(0);
+
+                var pie = d3.layout.pie()
+                    .sort(null)
+                    .value(function(d) { return d.numRequests; });
+
+                charts[this_i]
+                  .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+                  
+                var g = charts[this_i].selectAll(".arc")
+                    .data(pie(json_data))
+                  .enter().append("g")
+                    .attr("class", "arc");
+
+                g.append("path")
+                    .attr("d", arc)
+                    .style("fill", function(d) { return color(d.data.neighborhood); });
+
+                g.append("text")
+                    .attr("transform", function(d) { return "translate(" + arc.centroid(d) + ")"; })
+                    .attr("dy", ".35em")
+                    .style("text-anchor", "middle")
+                    .text(function(d) { return d.data.neighborhood; });
 
               });
               
@@ -127,8 +208,8 @@
                   });
               });
               
-              console.log("counts: ");
-              console.log(counts);
+              // console.log("counts: ");
+              // console.log(counts);
               // console.log("data PRE-SORT: ");
               // console.log(data);
 
@@ -145,8 +226,8 @@
               // Copy new data back into json_data for convenience (so all charts use json_data for building their chart).
               json_data = data.slice();
               
-              console.log("json_data POST-SORT: ");
-              console.log(json_data);
+              // console.log("json_data POST-SORT: ");
+              // console.log(json_data);
 
               // 2) --- Now we can create the chart.
               

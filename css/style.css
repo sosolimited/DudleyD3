@@ -356,3 +356,6 @@ span.niners {
 .dot {
   stroke: #000;
 }
+.arc path {
+  stroke: #fff;
+}
