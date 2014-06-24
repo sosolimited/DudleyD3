@@ -17,6 +17,7 @@
   <script src="js/jquery-1.11.1.min.js"></script>
   <script src="js/d3.min.js"></script>
   <script src="js/common.js"></script>
+  <script src="js/OpenLayers.js"></script>  <!-- Used for calculating if a lat/long point is within a geojson polygon, ie. to determine what neighborhood a request made in. -->
   <script type="text/javascript" charset="utf-8">
     
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - General - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -72,7 +73,25 @@
             // - - - - MAKE CHART: Request per neighborhood, pie chart.
             if (charts_data[this_i][1] == "activity/neighborhood"){
 
-              
+              // Import GEOjson data of Boston neighborhoods.
+              d3.json("data/boston_neighborhoods.geojson", function(error, geojson) {
+
+                console.log("GEOJSON");
+                console.log(geojson);
+
+                // Determine what neighborhood the request made in.
+                var parser = new OpenLayers.Format.GeoJSON();
+                var vectors = parser.read(geojson);
+                var lat = 42.334154;
+                var lon = -71.076007;
+                var point = new OpenLayers.Geometry.Point(lon, lat);
+                for( var i = 0; i < vectors.length; i++ ){
+                    if(vectors[i].geometry.intersects(point)){
+                       alert(vectors[i].attributes['name']);
+                    }
+                }
+
+              });
               
             }
             // - - - - MAKE CHART: Request per hour, bar chart.
