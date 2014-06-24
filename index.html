@@ -27,7 +27,8 @@
                         // ["https://mayors24.cityofboston.gov/open311/v2/requests.json?page=3&page_size=250", "activity", "test", 950, 400],
                         ["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood", "Requests per neighborhood : 750 items (~6 days)", 950, 400],
                         ["data/dudley-june23-750results-manuallycollated.json", "activity/hour", "Requests per hour : 750 items (~6 days)", 950, 400],
-                        ["data/dudley-june23-750results-manuallycollated.json", "location", "Request locations : 750 items (~6 days)", 950, 950]
+                        ["data/dudley-june23-750results-manuallycollated.json", "location", "Request locations : 750 items (~6 days)", 950, 950],
+                        ["data/dudley-june23-750results-manuallycollated.json", "activity/category", "Requests per category : 750 items (~6 days)", 950, 400]
                       ];
     
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - Init : Time series charts - - -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -74,6 +75,63 @@
 
               
               
+            }
+            // - - - - MAKE CHART: Request Category, pie chart.
+            else if (charts_data[this_i][1] == "activity/category"){
+              
+              console.log(" - - - - - - - Colin's Pie Start");
+              
+              var counts = [];
+              var catData = [];
+              json_data.forEach(function(row) {
+                
+                var category = row.service_name;
+
+                if (!counts[category]) {
+                  counts[category] = 0
+                  catData.push({"name": category, "count": 0});
+                };
+
+                counts[category]++;
+
+              });
+
+              catData.forEach(function(value) {
+                value.count = counts[value.name];
+              });
+              
+              console.log(counts);
+              console.log(catData);
+
+              var color = d3.scale.ordinal()
+                  .range(["#98abc5", "#8a89a6", "#7b6888", "#6b486b", "#a05d56", "#d0743c", "#ff8c00"]);
+
+              var arc = d3.svg.arc()
+                .outerRadius(100)
+                .innerRadius(0);
+
+              var pie = d3.layout.pie()
+                  .sort(null)
+                  .value(function(d) { return d.count; });
+
+              var g = cur_chart.selectAll(".arc")
+                  .data(pie(catData))
+                .enter().append("g")
+                  .attr("transform", "translate(" + 100 + "," + 100 + ")")
+                  .attr("class", "arc");
+
+              g.append("path")
+                .attr("d", arc)
+                .style("fill", function(d) { return color(d.data.count); });
+
+              g.append("text")
+                .attr("transform", function(d) { return "translate(" + arc.centroid(d) + ")"; })
+                .attr("dy", ".35em")
+                .style("text-anchor", "middle")
+                .text(function(d) { return d.count; });
+   
+              console.log(" - - - - - - - Colin's Pie End");
+
             }
             // - - - - MAKE CHART: Request per hour, bar chart.
             else if (charts_data[this_i][1] == "activity/hour"){
