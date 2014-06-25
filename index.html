@@ -622,8 +622,8 @@
                   .data(Object)
                 .enter().append("svg:rect")
                   .attr("x", function(d) { return x(d.x); })
-                  .attr("y", function(d) { return  -y(d.y0) - y(d.y); ; })
-                  .attr("height", function(d) { return y(d.y); })
+                  .attr("y", function(d) { return -height + y(d.y+d.y0) ; })
+                  .attr("height", function(d) { return height - y(d.y)  ; })
                   .attr("width", 2);
 
                   // d.y = height
