@@ -28,7 +28,8 @@
                         ["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood", "Requests per neighborhood : 750 items (~6 days)", 950, 400],
                         ["data/dudley-june23-750results-manuallycollated.json", "activity/hour", "Requests per hour : 750 items (~6 days)", 950, 400],
                         ["data/dudley-june23-750results-manuallycollated.json", "location", "Request locations : 750 items (~6 days)", 950, 950],
-                        ["data/dudley-june23-750results-manuallycollated.json", "activity/category", "Requests per category : 750 items (~6 days)", 950, 500]
+                        ["data/dudley-june23-750results-manuallycollated.json", "activity/category", "Requests per category : 750 items (~6 days)", 950, 500],
+                        ["data/dudley-june23-750results-manuallycollated.json", "activity/hour/stacked", "Requests per hour stacked : 750 items (~6 days)", 950, 400]
                       ];
     
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - Init : Time series charts - - -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -353,6 +354,168 @@
                   .attr("dy", ".35em")
                   .style("text-anchor", "end")
                   .text(function(d) { return d; });
+
+            }
+            // - - - - MAKE STACKED CHART: Request per hour, open vs closed bar chart.
+            else if (charts_data[this_i][1] == "activity/hour/stacked"){
+              console.log("- - - - - Colin's Stacked Bar Chart Starts - - - - - ");
+              // 1) --- Custom-format our data into an array of objects as {hour, numOfRequestsThatHour}.
+
+              var parseDate = d3.time.format("%Y-%m-%dT%H%Z").parse;
+
+              // Build the array that counts requests per hour.
+              var counts = {};
+              json_data.forEach(function(row) {
+                  // Format the date to represent a hour.
+                  var date = row.updated_datetime.slice(0, -3) + row.updated_datetime.slice(-2);     // remove the colon ':' from the timezone at the end.
+                  date = date.slice(0, 13) + date.slice(-5);     // remove anything smaller than a hour (ie. remove seconds).
+                  date = parseDate(date);                        //TODO: timezone isn't working correctly....
+                  
+
+                  // Store the date with its count (of how many times it was encountered until now).
+                  if (!counts[date]) {
+                      counts[date] = {"count": 0, "opened": 0, "closed": 0};
+                  };
+                  counts[date].count++;
+
+                  if (row.status == "open") {
+                    counts[date].opened++;
+                  } else {
+                    counts[date].closed++;
+                  }
+
+              });
+              // Use the counts array to build a proper array of data objects {hour, count}.
+              var data = [];
+              // Loop thru each key in counts, and push the key as item #1 and the counts as item #2.
+              Object.keys(counts).forEach(function(key) {
+                  // The 'key' in counts is the date. We must convert it back to a Date obj because this loop casts it to a string (weirdly).
+                  key = new Date(key);
+                  data.push({
+                      updated_datetime: key,
+                      requests: counts[key].count,
+                      opened: counts[key].opened,
+                      closed: counts[key].closed
+                  });
+              });
+              
+              console.log("counts: ");
+              console.log(counts);
+              // console.log("data PRE-SORT: ");
+              // console.log(data);
+
+
+              // A comparison funciton that is used to sort the dates in ascending order (oldest to newest).
+              var date_sort_asc = function (date1, date2) {
+                if (date1.updated_datetime > date2.updated_datetime) return 1;
+                if (date1.updated_datetime < date2.updated_datetime) return -1;
+                return 0;
+              };
+              
+              // Sort the dates (because d3.extent() in domain() below expects items to be sorted).
+              data.sort(date_sort_asc);
+
+              // Copy new data back into json_data for convenience (so all charts use json_data for building their chart).
+              json_data = data.slice();
+              
+              console.log("json_data POST-SORT: ");
+              console.log(json_data);
+
+              var layers = [
+                {
+                  "name": "opened",
+                  "values": []
+                },
+                {
+                  "name": "closed",
+                  "values": []
+                }
+              ];
+
+              json_data.forEach(function(d, i) {
+                layers[0].values.push({
+                  "x": i, "y": d.opened
+                });
+
+                layers[1].values.push({
+                  "x": i, "y": d.closed
+                })
+              });
+              console.log(layers);
+
+              // 2) --- Now we can create the chart.
+
+              var x = d3.scale.ordinal()
+                  .rangeRoundBands([0, width], .1);
+
+              var y = d3.scale.linear()
+                  .rangeRound([height, 0]);
+
+              var color = d3.scale.ordinal()
+                  .range(["#98abc5", "#8a89a6", "#7b6888", "#6b486b", "#a05d56", "#d0743c", "#ff8c00"]);
+
+              var xAxis = d3.svg.axis()
+                  .scale(x)
+                  .orient("bottom");
+
+              var yAxis = d3.svg.axis()
+                  .scale(y)
+                  .orient("left")
+                  .tickFormat(d3.format(".2s"));
+
+              var svg = d3.select("body").append("svg")
+                  .attr("width", width + margin.left + margin.right)
+                  .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                  .attr("transform", "translate(" + margin.left + "," + margin.top + ")");      
+              
+/*              var x = d3.time.scale()
+                .range([0, width])
+                .domain(d3.extent(json_data, function(d) { return d.updated_datetime; }));
+
+              var y = d3.scale.linear()
+                  .range([height, 0])
+                  .domain([0, d3.max(json_data, function(d) { return d.requests; })]);
+
+              var xAxis = d3.svg.axis()
+                  .scale(x)
+                  .orient("bottom");
+
+              var yAxis = d3.svg.axis()
+                  .scale(y)
+                  .orient("left");
+
+              charts[this_i].append("g")
+                  .attr("class", "x axis")
+                  .attr("transform", "translate(0," + height + ")")
+                  .call(xAxis)
+                .append("text")
+                  .attr("class", "label")
+                  .attr("x", width)
+                  .attr("y", -6)
+                  .style("text-anchor", "end")
+                  .text("Hour");
+
+              charts[this_i].append("g")
+                  .attr("class", "y axis")
+                  .call(yAxis)
+                .append("text")
+                  .attr("transform", "rotate(-90)")
+                  .attr("y", 6)
+                  .attr("dy", ".71em")
+                  .style("text-anchor", "end")
+                  .text("#Requests");
+
+              charts[this_i].selectAll(".bar")
+                  .data(json_data)
+                .enter().append("rect")
+                  .attr("class", "bar")
+                  .attr("x", function(d) { return x(d.updated_datetime); })
+                  .attr("width", 2)
+                  .attr("y", function(d) { return y(d.requests); })
+                  .attr("height", function(d) { return height - y(d.requests); });*/
+
+              console.log("- - - - - Colin's Stacked Bar Chart Ends - - - - - ");
 
             }
 
