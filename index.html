@@ -26,7 +26,7 @@
     
     var charts_data = [ 
                         // ["https://mayors24.cityofboston.gov/open311/v2/requests.json?page=3&page_size=250", "activity", "test", 950, 400],
-                        ["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood", "Requests per neighborhood : 750 items (~6 days)", 950, 400],
+                        //["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood", "Requests per neighborhood : 750 items (~6 days)", 950, 400],
                         ["data/dudley-june23-750results-manuallycollated.json", "activity/hour", "Requests per hour : 750 items (~6 days)", 950, 400],
                         ["data/dudley-june23-750results-manuallycollated.json", "location", "Request locations : 750 items (~6 days)", 950, 950],
                         ["data/dudley-june23-750results-manuallycollated.json", "activity/category", "Requests per category : 750 items (~6 days)", 950, 500],
@@ -545,20 +545,41 @@
               });
               console.log(layers);
 
+              var openClose = d3.layout.stack()(["opened", "closed"].map(function(req) {
+                return json_data.map(function(d) {
+                  return {x: d.updated_datetime, y: d[req]};
+                });
+              }));
+
               // 2) --- Now we can create the chart.
+
+              var w = width,
+                  h = height,
+                  p = [0, 0, 0, 0],
+                  //x = d3.scale.ordinal().rangeRoundBands([0, w - p[1] - p[3]]),
+                  //y = d3.scale.linear().range([0, h - p[0] - p[2]]),
+                  z = d3.scale.ordinal().range(["red", "lightgreen", "lightblue"]),
+                  parse = d3.time.format("%m/%Y").parse,
+                  format = d3.time.format("%b");
 
               var x = d3.time.scale()
                 .range([0, width])
                 .domain(d3.extent(json_data, function(d) { return d.updated_datetime; }));
 
               var y = d3.scale.linear()
-                  .range([height, 0])
-                  .domain([0, d3.max(json_data, function(d) { return d.requests; })]);
+                  .range([height, 0]);
+                  //.domain([0, d3.max(json_data, function(d) { return d.requests; })]);
 
-              var color = d3.scale.ordinal()
-                .range(["#98abc5", "#8a89a6", "#7b6888", "#6b486b", "#a05d56", "#d0743c", "#ff8c00"]);
+              var barChart = cur_chart.append("svg:svg")
+                  .attr("width", w)
+                  .attr("height", h)
+                .append("svg:g")
+                  .attr("transform", "translate(" + p[3] + "," + (h - p[2]) + ")");
 
-              
+              // Compute the x-domain (by date) and y-domain (by top).
+              //x.domain(openClose[0].map(function(d) { return d.x; }));
+              y.domain([0, d3.max(openClose[openClose.length - 1], function(d) { return d.y0 + d.y; })]);
+
 
               var xAxis = d3.svg.axis()
                   .scale(x)
@@ -589,14 +610,34 @@
                   .style("text-anchor", "end")
                   .text("#Requests");
 
-              charts[this_i].selectAll(".bar")
+              var request = barChart.selectAll("g.request")
+                  .data(openClose)
+                .enter().append("svg:g")
+                  .attr("class", "request")
+                  .style("fill", function(d, i) { return z(i); })
+                  .style("stroke", function(d, i) { return d3.rgb(z(i)).darker(); });
+
+              // Add a rect for each date.
+              var rect = request.selectAll("rect")
+                  .data(Object)
+                .enter().append("svg:rect")
+                  .attr("x", function(d) { return x(d.x); })
+                  .attr("y", function(d) { return  -y(d.y0) - y(d.y); ; })
+                  .attr("height", function(d) { return y(d.y); })
+                  .attr("width", 2);
+
+                  // d.y = height
+                  // d.y0 = starting point for both
+                  // d.x = day
+
+              /*charts[this_i].selectAll(".bar")
                   .data(layers)
                 .enter().append("rect")
                   .attr("class", "bar")
                   .attr("x", function(d) { return x(d.x); })
                   .attr("width", 2)
                   .attr("y", function(d) { return y(d.y0); })
-                  .attr("height", function(d) { return y(d.y) - y(d.y0); });
+                  .attr("height", function(d) { return y(d.y) - y(d.y0); });*/
 
               console.log("- - - - - Colin's Stacked Bar Chart Ends - - - - - ");
 
