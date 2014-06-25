@@ -550,12 +550,13 @@
                   return {x: d.updated_datetime, y: d[req]};
                 });
               }));
+              console.log(openClose);
 
               // 2) --- Now we can create the chart.
 
               var w = width,
                   h = height,
-                  p = [0, 0, 0, 0],
+                  p = [0, 0, 0, 1],
                   //x = d3.scale.ordinal().rangeRoundBands([0, w - p[1] - p[3]]),
                   //y = d3.scale.linear().range([0, h - p[0] - p[2]]),
                   z = d3.scale.ordinal().range(["red", "lightgreen", "lightblue"]),
@@ -563,11 +564,11 @@
                   format = d3.time.format("%b");
 
               var x = d3.time.scale()
-                .range([0, width])
+                .range([0, width-3])
                 .domain(d3.extent(json_data, function(d) { return d.updated_datetime; }));
 
               var y = d3.scale.linear()
-                  .range([height, 0]);
+                  .range([0, height]);
                   //.domain([0, d3.max(json_data, function(d) { return d.requests; })]);
 
               var barChart = cur_chart.append("svg:svg")
@@ -583,7 +584,7 @@
 
               var xAxis = d3.svg.axis()
                   .scale(x)
-                  .orient("bottom");
+                  .orient("top");
 
               var yAxis = d3.svg.axis()
                   .scale(y)
@@ -591,7 +592,7 @@
 
               charts[this_i].append("g")
                   .attr("class", "x axis")
-                  .attr("transform", "translate(0," + height + ")")
+                  .attr("transform", "translate(0," + 0 + ")")
                   .call(xAxis)
                 .append("text")
                   .attr("class", "label")
@@ -604,7 +605,8 @@
                   .attr("class", "y axis")
                   .call(yAxis)
                 .append("text")
-                  .attr("transform", "rotate(-90)")
+                  .attr("transform", "translate(0," + 300 + ") rotate(-90)")
+                  //.attr("transform", "rotate(-90)")
                   .attr("y", 6)
                   .attr("dy", ".71em")
                   .style("text-anchor", "end")
@@ -612,19 +614,19 @@
 
               var request = barChart.selectAll("g.request")
                   .data(openClose)
-                .enter().append("svg:g")
+                .enter().append("g")
                   .attr("class", "request")
                   .style("fill", function(d, i) { return z(i); })
                   .style("stroke", function(d, i) { return d3.rgb(z(i)).darker(); });
 
               // Add a rect for each date.
               var rect = request.selectAll("rect")
-                  .data(Object)
-                .enter().append("svg:rect")
+                  .data(function(d) { return d; })
+                .enter().append("rect")
                   .attr("x", function(d) { return x(d.x); })
-                  .attr("y", function(d) { return  -y(d.y0) - y(d.y); ; })
+                  .attr("y", function(d) { return  y(d.y0)-height; ; })
                   .attr("height", function(d) { return y(d.y); })
-                  .attr("width", 2);
+                  .attr("width", 4);
 
                   // d.y = height
                   // d.y0 = starting point for both
