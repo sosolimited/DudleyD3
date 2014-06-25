@@ -421,61 +421,29 @@
               console.log("json_data POST-SORT: ");
               console.log(json_data);
 
-              var layers = [
-                {
-                  "name": "opened",
-                  "values": []
-                },
-                {
-                  "name": "closed",
-                  "values": []
-                }
-              ];
+              var layers = [];
 
               json_data.forEach(function(d, i) {
-                layers[0].values.push({
-                  "x": i, "y": d.opened
+                layers.push({
+                  "x": d.updated_datetime, "y": d.opened, "y0": d.closed
                 });
-
-                layers[1].values.push({
-                  "x": i, "y": d.closed
-                })
               });
               console.log(layers);
 
               // 2) --- Now we can create the chart.
 
-              var x = d3.scale.ordinal()
-                  .rangeRoundBands([0, width], .1);
-
-              var y = d3.scale.linear()
-                  .rangeRound([height, 0]);
-
-              var color = d3.scale.ordinal()
-                  .range(["#98abc5", "#8a89a6", "#7b6888", "#6b486b", "#a05d56", "#d0743c", "#ff8c00"]);
-
-              var xAxis = d3.svg.axis()
-                  .scale(x)
-                  .orient("bottom");
-
-              var yAxis = d3.svg.axis()
-                  .scale(y)
-                  .orient("left")
-                  .tickFormat(d3.format(".2s"));
-
-              var svg = d3.select("body").append("svg")
-                  .attr("width", width + margin.left + margin.right)
-                  .attr("height", height + margin.top + margin.bottom)
-                .append("g")
-                  .attr("transform", "translate(" + margin.left + "," + margin.top + ")");      
-              
-/*              var x = d3.time.scale()
+              var x = d3.time.scale()
                 .range([0, width])
                 .domain(d3.extent(json_data, function(d) { return d.updated_datetime; }));
 
               var y = d3.scale.linear()
                   .range([height, 0])
                   .domain([0, d3.max(json_data, function(d) { return d.requests; })]);
+
+              var color = d3.scale.ordinal()
+                .range(["#98abc5", "#8a89a6", "#7b6888", "#6b486b", "#a05d56", "#d0743c", "#ff8c00"]);
+
+              
 
               var xAxis = d3.svg.axis()
                   .scale(x)
@@ -507,13 +475,13 @@
                   .text("#Requests");
 
               charts[this_i].selectAll(".bar")
-                  .data(json_data)
+                  .data(layers)
                 .enter().append("rect")
                   .attr("class", "bar")
-                  .attr("x", function(d) { return x(d.updated_datetime); })
+                  .attr("x", function(d) { return x(d.x); })
                   .attr("width", 2)
-                  .attr("y", function(d) { return y(d.requests); })
-                  .attr("height", function(d) { return height - y(d.requests); });*/
+                  .attr("y", function(d) { return y(d.y0); })
+                  .attr("height", function(d) { return y(d.y) - y(d.y0); });
 
               console.log("- - - - - Colin's Stacked Bar Chart Ends - - - - - ");
 
