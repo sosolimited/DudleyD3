@@ -27,10 +27,10 @@
     var charts_data = [ 
                         // ["https://mayors24.cityofboston.gov/open311/v2/requests.json?page=3&page_size=250", "activity", "test", 950, 400],
                         //["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood", "Requests per neighborhood : 750 items (~6 days)", 950, 400],
-                        ["data/dudley-june23-750results-manuallycollated.json", "activity/hour", "Requests per hour : 750 items (~6 days)", 950, 400],
+                        //["data/dudley-june23-750results-manuallycollated.json", "activity/hour", "Requests per hour : 750 items (~6 days)", 950, 400],
+                        ["data/dudley-june23-750results-manuallycollated.json", "activity/hour/stacked", "Requests per hour stacked : 750 items (~6 days)", 950, 400],                        
                         ["data/dudley-june23-750results-manuallycollated.json", "location", "Request locations : 750 items (~6 days)", 950, 950],
                         ["data/dudley-june23-750results-manuallycollated.json", "activity/category", "Requests per category : 750 items (~6 days)", 950, 500],
-                        ["data/dudley-june23-750results-manuallycollated.json", "activity/hour/stacked", "Requests per hour stacked : 750 items (~6 days)", 950, 400],
                         ["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood", "Requests per neighborhood : 750 items (~6 days)", 950, 400]
                       ];
     
@@ -472,9 +472,10 @@
                   .text(function(d) { return d; });
 
             }
+
             // - - - - MAKE STACKED CHART: Request per hour, open vs closed bar chart.
             else if (charts_data[this_i][1] == "activity/hour/stacked"){
-              console.log("- - - - - Colin's Stacked Bar Chart Starts - - - - - ");
+
               // 1) --- Custom-format our data into an array of objects as {hour, numOfRequestsThatHour}.
 
               var parseDate = d3.time.format("%Y-%m-%dT%H%Z").parse;
@@ -515,12 +516,6 @@
                   });
               });
               
-              console.log("counts: ");
-              console.log(counts);
-              // console.log("data PRE-SORT: ");
-              // console.log(data);
-
-
               // A comparison funciton that is used to sort the dates in ascending order (oldest to newest).
               var date_sort_asc = function (date1, date2) {
                 if (date1.updated_datetime > date2.updated_datetime) return 1;
@@ -533,52 +528,35 @@
 
               // Copy new data back into json_data for convenience (so all charts use json_data for building their chart).
               json_data = data.slice();
-              
-              console.log("json_data POST-SORT: ");
-              console.log(json_data);
 
-              var layers = [];
-
-              json_data.forEach(function(d, i) {
-                layers.push({
-                  "x": d.updated_datetime, "y": d.opened, "y0": d.closed
-                });
-              });
-              console.log(layers);
-
+              //Converting the data into a d3 stack layout object. In this case we are going through looking for opened and closed.
               var openClose = d3.layout.stack()(["opened", "closed"].map(function(req) {
                 return json_data.map(function(d) {
-                  return {x: d.updated_datetime, y: d[req]};
+                  return {name: req, x: d.updated_datetime, y: d[req]};
                 });
               }));
 
               // 2) --- Now we can create the chart.
-
-              var w = width,
-                  h = height,
-                  p = [0, 0, 0, 0],
-                  //x = d3.scale.ordinal().rangeRoundBands([0, w - p[1] - p[3]]),
-                  //y = d3.scale.linear().range([0, h - p[0] - p[2]]),
-                  z = d3.scale.ordinal().range(["red", "lightgreen", "lightblue"]),
-                  parse = d3.time.format("%m/%Y").parse,
-                  format = d3.time.format("%b");
+              
+              //As we have different data categories the are assign the following colors.
+              var z = d3.scale.ordinal().range(["red", "lightgreen"]);
 
               var x = d3.time.scale()
-                .range([0, width])
-                .domain(d3.extent(json_data, function(d) { return d.updated_datetime; }));
+                .range([0, width-5]);
 
               var y = d3.scale.linear()
                   .range([height, 0]);
-                  //.domain([0, d3.max(json_data, function(d) { return d.requests; })]);
 
+
+              //
               var barChart = cur_chart.append("svg:svg")
-                  .attr("width", w)
-                  .attr("height", h)
+                  .attr("width", width)
+                  .attr("height", height)
                 .append("svg:g")
-                  .attr("transform", "translate(" + p[3] + "," + (h - p[2]) + ")");
+                  .attr("transform", "translate(" + 1 + "," + height + ")");
 
               // Compute the x-domain (by date) and y-domain (by top).
-              //x.domain(openClose[0].map(function(d) { return d.x; }));
+              x.domain(d3.extent(json_data, function(d) { return d.updated_datetime; }));
               y.domain([0, d3.max(openClose[openClose.length - 1], function(d) { return d.y0 + d.y; })]);
 
 
@@ -597,7 +575,7 @@
                 .append("text")
                   .attr("class", "label")
                   .attr("x", width)
-                  .attr("y", -6)
+                  .attr("y", 20)
                   .style("text-anchor", "end")
                   .text("Hour");
 
@@ -613,34 +591,38 @@
 
               var request = barChart.selectAll("g.request")
                   .data(openClose)
-                .enter().append("svg:g")
+                .enter().append("g")
                   .attr("class", "request")
                   .style("fill", function(d, i) { return z(i); })
                   .style("stroke", function(d, i) { return d3.rgb(z(i)).darker(); });
 
               // Add a rect for each date.
               var rect = request.selectAll("rect")
-                  .data(Object)
-                .enter().append("svg:rect")
-                  .attr("x", function(d) { return x(d.x); })
-                  .attr("y", function(d) { return -height + y(d.y+d.y0) ; })
-                  .attr("height", function(d) { return height - y(d.y)  ; })
-                  .attr("width", 2);
-
-                  // d.y = height
-                  // d.y0 = starting point for both
-                  // d.x = day
-
-              /*charts[this_i].selectAll(".bar")
-                  .data(layers)
+                  .data(function(d) { return d; })
                 .enter().append("rect")
-                  .attr("class", "bar")
                   .attr("x", function(d) { return x(d.x); })
-                  .attr("width", 2)
-                  .attr("y", function(d) { return y(d.y0); })
-                  .attr("height", function(d) { return y(d.y) - y(d.y0); });*/
+                  .attr("y", function(d) { return  -height + y(d.y0+d.y); }) //We are inverted ---^---
+                  .attr("height", function(d) { return height - y(d.y); })
+                  .attr("width", 4);
 
-              console.log("- - - - - Colin's Stacked Bar Chart Ends - - - - - ");
+              var legend = charts[this_i].selectAll(".legend")
+                    .data(openClose)
+                  .enter().append("g")
+                    .attr("class", "legend")
+                    .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
+
+              legend.append("rect")
+                  .attr("x", width - 18)
+                  .attr("width", 18)
+                  .attr("height", 18)
+                  .style("fill", function(d, i) { return z(i); });
+
+              legend.append("text")
+                  .attr("x", width - 24)
+                  .attr("y", 9)
+                  .attr("dy", ".35em")
+                  .style("text-anchor", "end")
+                  .text(function(d, i) { return d[0].name; });
 
             }
 
