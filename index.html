@@ -25,8 +25,9 @@
     var charts = [];    
     
     var charts_data = [ 
+                        // ["https://mayors24.cityofboston.gov/open311/v2/services.json?callback=handle_data", "location", "Request locations : 750 items (~6 days)", 950, 950],
                         // ["https://mayors24.cityofboston.gov/open311/v2/requests.json?page=3&page_size=250", "activity", "test", 950, 400],
-                        ["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood", "Requests per neighborhood : 750 items (~6 days)", 950, 400],
+                        // ["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood", "Requests per neighborhood : 750 items (~6 days)", 950, 400],
                         ["data/dudley-june23-750results-manuallycollated.json", "activity/hour", "Requests per hour : 750 items (~6 days)", 950, 400],
                         ["data/dudley-june23-750results-manuallycollated.json", "location", "Request locations : 750 items (~6 days)", 950, 950]
                       ];
@@ -62,13 +63,13 @@
             .append("g")                                // "g" is a SVG group element for applying properties to many objects at once.
               .attr("transform", "translate(" + margin.left + "," + margin.top + ")");  
           charts[i] = cur_chart;
-          console.log(cur_chart);
+          // console.log(cur_chart);
   
           // Load the JSON data.
           d3.json(charts_data[this_i][0], function(error, json_data) {
             
-            console.log("- - - - - - - - - - - - - - - - - - #"+ this_i +" DATA : ")
-            console.log(json_data);
+            // console.log("- - - - - - - - - - - - - - - - - - #"+ this_i +" DATA : ")
+            // console.log(json_data);
 
             // - - - - MAKE CHART: Request per neighborhood, bar chart.
             if (charts_data[this_i][1] == "activity/neighborhood"){
