@@ -31,7 +31,8 @@
                         ["data/dudley-june23-750results-manuallycollated.json", "activity/hour/stacked", "Requests per hour stacked : 750 items (~6 days)", 950, 400],                        
                         ["data/dudley-june23-750results-manuallycollated.json", "location", "Request locations : 750 items (~6 days)", 950, 950],
                         ["data/dudley-june23-750results-manuallycollated.json", "activity/category", "Requests per category : 750 items (~6 days)", 950, 500],
-                        ["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood", "Requests per neighborhood : 750 items (~6 days)", 950, 400]
+                        //["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood", "Requests per neighborhood : 750 items (~6 days)", 950, 400],
+                        ["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood/stacked", "Requests per neighborhood Stacked : 750 items (~6 days)", 950, 400]
                       ];
     
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - Init : Time series charts - - -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -193,6 +194,189 @@
               });
               
             }
+
+            // - - - - MAKE CHART: Request per neighborhood, category stacked bar chart.
+            else if (charts_data[this_i][1] == "activity/neighborhood/stacked"){
+
+              // Import GEOjson data of Boston neighborhoods.
+              d3.json("data/boston_neighborhoods.geojson", function(error, geojson) {
+
+                // 1) --- Custom-format our data into an array of objects as {neighborhood, numRequests}.
+
+                // Build the array that counts the number of requests per neighborhood.
+                var counts = {};
+                var allRequestTypes = {};
+                var parser = new OpenLayers.Format.GeoJSON();
+                var vectors = parser.read(geojson);
+                var lat, lon, point, neighborhood, category = "Unknown";
+                json_data.forEach(function(row) {
+                    category = row.service_name;
+                    lat = row.lat;
+                    lon = row.long;
+                    point = new OpenLayers.Geometry.Point(lon, lat);
+                    
+                    //TODO: this loop is EXTREMELY inefficient, takes one minuted to parse all the data...
+                    for( var i = 0; i < vectors.length; i++ ){
+                        if(vectors[i].geometry.intersects(point)){
+                           neighborhood = vectors[i].attributes['name'];
+                           //console.log(neighborhood);
+                           break;
+                        }
+                    }
+
+                    // Store the neighborhood with its count (of how many times it was encountered until now).
+                    if (!counts[neighborhood]) {
+                        counts[neighborhood] = {"total":0, "categories": {}};
+                    }
+                    counts[neighborhood].total++;
+                    if (!counts[neighborhood].categories[category]) {
+                      counts[neighborhood].categories[category] = 0;
+                    }
+                    counts[neighborhood].categories[category]++;
+                    if (!allRequestTypes[category]) {
+                      allRequestTypes[category] = category;
+                    } 
+                });
+                //console.log(allRequestTypes);
+                //console.log(counts);
+                // console.log("NEIGHBORHOOD- counts");
+                // console.log(counts);
+
+                // Use the counts array to build a proper array of data objects {neighborhood, count}.
+                var data = [];
+                // Loop thru each key in counts, and push the key as item #1 and the counts as item #2.
+                Object.keys(counts).forEach(function(key) {
+                    //var requests = [];
+                    //var req = counts[key].categories;
+                    //Object.keys(req).forEach(function(cat) {
+                    //  requests.push({"name": cat, "count": counts[key].categories[cat]});
+                    //});
+
+                    data.push({
+                        neighborhood: key,
+                        numRequests: counts[key].total,
+                        categories: counts[key].categories
+                    });
+                });
+                //console.log(data);
+                // console.log("NEIGHBORHOOD- data PRE-SORT: ");
+                // console.log(data);
+                var allReq = [];
+                Object.keys(allRequestTypes).forEach(function(key) {
+                      allReq.push(key);
+                });
+                console.log(allReq);
+
+                // A comparison funciton that is used to sort the dates in ascending order (oldest to newest).
+                var date_sort_asc = function (neighborhood1, neighborhood2) {
+                  if (neighborhood1.neighborhood > neighborhood2.neighborhood) return 1;
+                  if (neighborhood1.neighborhood < neighborhood2.neighborhood) return -1;
+                  return 0;
+                };
+                
+                // Sort the dates (because d3.extent() in domain() below expects items to be sorted).
+                data.sort(date_sort_asc);
+
+                // Copy new data back into json_data for convenience (so all charts use json_data for building their chart).
+                json_data = data.slice();
+
+                var allCat = d3.layout.stack()(allReq.map(function(req) {
+                  return json_data.map(function(d) {
+                    if (d.categories[req]) {
+                      return {name: req, x: d.neighborhood, y: d.categories[req]};
+                    } else {
+                      return {name: req, x: d.neighborhood, y: 0};
+                    }
+                  });
+                }));
+                console.log(allCat);
+                // console.log("NEIGHBORHOOD- json_data POST-SORT: ");
+                // console.log(json_data);
+
+
+                // 2) --- Now we can create the chart.
+                
+                height -= 100;      // Reduce the height of the graph to fit the graph + labels into the div.
+
+                var color = d3.scale.category20();
+
+                var x = d3.scale.ordinal()
+                  .rangeRoundBands([0, width], .1)
+                  .domain(json_data.map(function(d) { return d.neighborhood; }));
+
+                var y = d3.scale.linear()
+                    .range([height, 0])
+                    .domain([0, d3.max(allCat[allCat.length - 1], function(d) { return d.y0 + d.y; })]);
+
+                var xAxis = d3.svg.axis()
+                    .scale(x)
+                    .orient("bottom");
+
+                var yAxis = d3.svg.axis()
+                    .scale(y)
+                    .orient("left");
+
+                charts[this_i].append("g")
+                    .attr("class", "x axis")
+                    .attr("transform", "translate(0," + height + ")")
+                    .call(xAxis)
+                  .selectAll("text")
+                      .attr("y", 0)
+                      .attr("x", 9)
+                      .attr("dy", ".35em")
+                      .attr("transform", "rotate(90)")
+                      .style("text-anchor", "start");
+
+                charts[this_i].append("g")
+                    .attr("class", "y axis")
+                    .call(yAxis)
+                  .append("text")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", 6)
+                    .attr("dy", ".71em")
+                    .style("text-anchor", "end")
+                    .text("#Requests");
+
+                var catRequests = charts[this_i].selectAll(".request")
+                    .data(allCat)
+                  .enter().append("g")
+                    .attr("class", "request")
+                    .style("fill", function(d, i) { return color(d[0].name); });
+                    //.style("stroke", function(d, i) { return d3.rgb(color(d[0].name)).darker(); });
+
+                catRequests.selectAll(".bar2")
+                    .data(function(d) {return d})
+                  .enter().append("rect")
+                    .attr("class", "bar2")
+                    .attr("x", function(d) { return x(d.x); })
+                    .attr("width", x.rangeBand())
+                    .attr("y", function(d) { return  y(d.y0+d.y); })
+                    .attr("height", function(d) { return height - y(d.y); });
+
+
+                //Ledgend copied from JC's work. "d" has been manipulated for current data set.
+                var legend = charts[this_i].selectAll(".legend")
+                      .data(allCat)
+                    .enter().append("g")
+                      .attr("class", "legend")
+                      .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
+
+                legend.append("rect")
+                    .attr("x", width)
+                    .attr("width", 18)
+                    .attr("height", 18)
+                    .style("fill", function(d) { return color(d[0].name); });
+
+                legend.append("text")
+                    .attr("x", width - 5)
+                    .attr("y", 9)
+                    .attr("dy", ".35em")
+                    .style("text-anchor", "end")
+                    .text(function(d) { return d[0].name; });
+
+              });
+              
+            }
             // - - - - MAKE CHART: Request Category, pie chart.
             else if (charts_data[this_i][1] == "activity/category"){
               
@@ -246,7 +430,7 @@
 
               g.append("path")
                 .attr("d", arc)
-                .style("fill", function(d) { return color(d.data.count); });
+                .style("fill", function(d) { return color(d.data.name); });
 
               //--Labels--
               g.append("text")
@@ -282,7 +466,7 @@
                   .attr("x", width - 18)
                   .attr("width", 18)
                   .attr("height", 18)
-                  .style("fill", function(d) { return color(d.count); });
+                  .style("fill", function(d) { return color(d.name); });
 
               legend.append("text")
                   .attr("x", width - 24)
@@ -535,7 +719,8 @@
                   return {name: req, x: d.updated_datetime, y: d[req]};
                 });
               }));
-
+              console.log("--OPEN CLOSE--");
+              console.log(openClose);
               // 2) --- Now we can create the chart.
               
               //As we have different data categories the are assign the following colors.
