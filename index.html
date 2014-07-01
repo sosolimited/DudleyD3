@@ -27,9 +27,13 @@
     var charts_data = [ 
                         // ["https://mayors24.cityofboston.gov/open311/v2/services.json?callback=handle_data", "location", "Request locations : 750 items (~6 days)", 950, 950],
                         // ["https://mayors24.cityofboston.gov/open311/v2/requests.json?page=3&page_size=250", "activity", "test", 950, 400],
-                        // ["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood", "Requests per neighborhood : 750 items (~6 days)", 950, 400],
-                        ["data/dudley-june23-750results-manuallycollated.json", "activity/hour", "Requests per hour : 750 items (~6 days)", 950, 400],
-                        ["data/dudley-june23-750results-manuallycollated.json", "location", "Request locations : 750 items (~6 days)", 950, 950]
+                        //["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood", "Requests per neighborhood : 750 items (~6 days)", 950, 400],
+                        //["data/dudley-june23-750results-manuallycollated.json", "activity/hour", "Requests per hour : 750 items (~6 days)", 950, 400],
+                        ["data/dudley-june23-750results-manuallycollated.json", "activity/hour/stacked", "Requests per hour stacked : 750 items (~6 days)", 950, 400],                        
+                        ["data/dudley-june23-750results-manuallycollated.json", "location", "Request locations : 750 items (~6 days)", 950, 950],
+                        ["data/dudley-june23-750results-manuallycollated.json", "activity/category", "Requests per category : 750 items (~6 days)", 950, 500],
+                        //["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood", "Requests per neighborhood : 750 items (~6 days)", 950, 400],
+                        ["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood/stacked", "Requests per neighborhood Stacked : 750 items (~6 days)", 950, 400]
                       ];
     
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - Init : Time series charts - - -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -88,14 +92,26 @@
                     lat = row.lat;
                     lon = row.long;
                     point = new OpenLayers.Geometry.Point(lon, lat);
+                    //var multiPolygon = new OpenLayers.Geometry.Collection(vectors[i].geometry);
                     
-                    //TODO: this loop is EXTREMELY inefficient, takes one minuted to parse all the data...
+                    //var polygon = new OpenLayers.Geometry.Polygon(multiPolygon.components[0]);
+                    //console.log("-- - -  ---- - - - - - -");
+                    //console.log(multiPolygon);
+                    //var polygon = multiPolygon;
+                    //TODO: this loop is slightly inefficient, takes 6s to parse all the data...
                     for( var i = 0; i < vectors.length; i++ ){
-                        if(vectors[i].geometry.intersects(point)){
-                           neighborhood = vectors[i].attributes['name'];
-                           console.log(neighborhood);
-                           break;
-                        }
+                      var bounds = vectors[i].geometry.getBounds();
+                      var lonLat = new OpenLayers.LonLat(lon,lat);
+                      //console.log(bounds);
+                        if(bounds.containsLonLat(lonLat)){
+                          if(vectors[i].geometry.intersects(point)){
+                          //if(polygon.intersects(point)){
+                             neighborhood = vectors[i].attributes['name'];
+                             //console.log(neighborhood);
+                             break;
+                          }
+                      }
+                      
                     }
 
                     // Store the neighborhood with its count (of how many times it was encountered until now).
@@ -190,6 +206,282 @@
 
               });
               
+            }
+
+            // - - - - MAKE CHART: Request per neighborhood, category stacked bar chart.
+            else if (charts_data[this_i][1] == "activity/neighborhood/stacked"){
+
+              // Import GEOjson data of Boston neighborhoods.
+              d3.json("data/boston_neighborhoods.geojson", function(error, geojson) {
+
+                // 1) --- Custom-format our data into an array of objects as {neighborhood, numRequests}.
+
+                // Build the array that counts the number of requests per neighborhood.
+                var counts = {};
+                var allRequestTypes = {};
+                var parser = new OpenLayers.Format.GeoJSON();
+                var vectors = parser.read(geojson);
+                var lat, lon, point, neighborhood, category = "Unknown";
+                json_data.forEach(function(row) {
+                    category = row.service_name;
+                    lat = row.lat;
+                    lon = row.long;
+                    point = new OpenLayers.Geometry.Point(lon, lat);
+                    
+                    //Loop to determine location.
+                    for( var i = 0; i < vectors.length; i++ ){
+                      var bounds = vectors[i].geometry.getBounds();
+                      var lonLat = new OpenLayers.LonLat(lon,lat);
+                      
+                      if(bounds.containsLonLat(lonLat)){
+                        
+                        if(vectors[i].geometry.intersects(point)){
+                           neighborhood = vectors[i].attributes['name'];
+                           break;
+                        }
+                      }
+                    }
+
+                    // Store the neighborhood with its count (of how many times it was encountered until now).
+                    // Store category count and add to category array.
+                    if (!counts[neighborhood]) {
+                        counts[neighborhood] = {"total":0, "categories": {}};
+                    }
+                    counts[neighborhood].total++;
+                    if (!counts[neighborhood].categories[category]) {
+                      counts[neighborhood].categories[category] = 0;
+                    }
+                    counts[neighborhood].categories[category]++;
+                    if (!allRequestTypes[category]) {
+                      allRequestTypes[category] = category;
+                    } 
+                });
+
+
+                // Use the counts array to build a proper array of data objects {neighborhood, count}.
+                var data = [];
+                // Loop thru each key in counts, and push the key as item #1 and the counts as item #2,
+                // and categories as item #3.
+                Object.keys(counts).forEach(function(key) {
+                    data.push({
+                        neighborhood: key,
+                        numRequests: counts[key].total,
+                        categories: counts[key].categories
+                    });
+                });
+                
+                // For mapping purposes with D3 Layouts we need an array of the stackable categories.
+                var allReq = [];
+                Object.keys(allRequestTypes).forEach(function(key) {
+                      allReq.push(key);
+                });
+
+                // A comparison funciton that is used to sort the dates in ascending order (oldest to newest).
+                var date_sort_asc = function (neighborhood1, neighborhood2) {
+                  if (neighborhood1.neighborhood > neighborhood2.neighborhood) return 1;
+                  if (neighborhood1.neighborhood < neighborhood2.neighborhood) return -1;
+                  return 0;
+                };
+                
+                // Sort the dates (because d3.extent() in domain() below expects items to be sorted).
+                data.sort(date_sort_asc);
+
+                // Copy new data back into json_data for convenience (so all charts use json_data for building their chart).
+                json_data = data.slice();
+
+                // Create the d3 Stack Layout by mapping the data.
+                var allCat = d3.layout.stack()(allReq.map(function(req) {
+                  return json_data.map(function(d) {
+                    if (d.categories[req]) {
+                      return {name: req, x: d.neighborhood, y: d.categories[req]};
+                    } else {
+                      return {name: req, x: d.neighborhood, y: 0};
+                    }
+                  });
+                }));
+
+
+                // 2) --- Now we can create the chart.
+                
+                height -= 100;      // Reduce the height of the graph to fit the graph + labels into the div.
+
+                var color = d3.scale.category20();
+
+                var x = d3.scale.ordinal()
+                  .rangeRoundBands([0, width], .1)
+                  .domain(json_data.map(function(d) { return d.neighborhood; }));
+
+                var y = d3.scale.linear()
+                    .range([height, 0])
+                    .domain([0, d3.max(allCat[allCat.length - 1], function(d) { return d.y0 + d.y; })]);
+
+                var xAxis = d3.svg.axis()
+                    .scale(x)
+                    .orient("bottom");
+
+                var yAxis = d3.svg.axis()
+                    .scale(y)
+                    .orient("left");
+
+                charts[this_i].append("g")
+                    .attr("class", "x axis")
+                    .attr("transform", "translate(0," + height + ")")
+                    .call(xAxis)
+                  .selectAll("text")
+                      .attr("y", 0)
+                      .attr("x", 9)
+                      .attr("dy", ".35em")
+                      .attr("transform", "rotate(90)")
+                      .style("text-anchor", "start");
+
+                charts[this_i].append("g")
+                    .attr("class", "y axis")
+                    .call(yAxis)
+                  .append("text")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", 6)
+                    .attr("dy", ".71em")
+                    .style("text-anchor", "end")
+                    .text("#Requests");
+
+                var catRequests = charts[this_i].selectAll(".request")
+                    .data(allCat)
+                  .enter().append("g")
+                    .attr("class", "request")
+                    .style("fill", function(d, i) { return color(d[0].name); });
+                    //.style("stroke", function(d, i) { return d3.rgb(color(d[0].name)).darker(); });
+
+                catRequests.selectAll(".bar2")
+                    .data(function(d) {return d})
+                  .enter().append("rect")
+                    .attr("class", "bar2")
+                    .attr("x", function(d) { return x(d.x); })
+                    .attr("width", x.rangeBand())
+                    .attr("y", function(d) { return  y(d.y0+d.y); })
+                    .attr("height", function(d) { return height - y(d.y); });
+
+
+                //Ledgend copied from JC's work. "d" has been manipulated for current data set.
+                var legend = charts[this_i].selectAll(".legend")
+                      .data(allCat)
+                    .enter().append("g")
+                      .attr("class", "legend")
+                      .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
+
+                legend.append("rect")
+                    .attr("x", width)
+                    .attr("width", 18)
+                    .attr("height", 18)
+                    .style("fill", function(d) { return color(d[0].name); });
+
+                legend.append("text")
+                    .attr("x", width - 5)
+                    .attr("y", 9)
+                    .attr("dy", ".35em")
+                    .style("text-anchor", "end")
+                    .text(function(d) { return d[0].name; });
+
+              });
+              
+            }
+            // - - - - MAKE CHART: Request Category, pie chart.
+            else if (charts_data[this_i][1] == "activity/category"){
+              
+              //---"counts" array used to create Data array "catData"---
+              var counts = [];
+              var catData = [];
+
+              //---Build Arrays step 1---
+              json_data.forEach(function(row) {
+                
+                var category = row.service_name;
+
+                if (!counts[category]) {
+                  counts[category] = 0
+                  catData.push({"name": category, "count": 0});
+                };
+
+                counts[category]++;
+
+              });
+
+              //---Build Arrays step 2---
+              catData.forEach(function(value) {
+                value.count = counts[value.name];
+              });
+
+              //---Create Pie Chart---
+              var radius = height - 210,
+                  labelr = radius + 10, // Label distance from center.
+                  posX = width/2,
+                  posY = height/2;
+
+              var color = d3.scale.category20();
+
+              //Arc Slice Template Element
+              var arc = d3.svg.arc()
+                .outerRadius(radius)
+                .innerRadius(0);
+
+              //Pie Charts use a layout in D3  
+              var pie = d3.layout.pie()
+                  .sort(null)
+                  .value(function(d) { return d.count; });
+
+              //Pass in Data and position new group.
+              var g = cur_chart.selectAll(".arc")
+                  .data(pie(catData))
+                .enter().append("g")
+                  .attr("transform", "translate(" + posX + "," + posY + ")")
+                  .attr("class", "arc");
+
+              g.append("path")
+                .attr("d", arc)
+                .style("fill", function(d) { return color(d.data.name); });
+
+              //--Labels--
+              g.append("text")
+                .attr("transform", function(d) {
+                    //--Math for Labels--
+                    var c = arc.centroid(d),
+                        x = c[0],
+                        y = c[1],
+                        // pythagorean theorem for hypotenuse
+                        h = Math.sqrt(x*x + y*y);
+                    return "translate(" + (x/h * labelr) +  ',' +
+                       (y/h * labelr) +  ")"; 
+                })
+                .attr("dy", ".35em")
+                .style("text-anchor", function(d) {
+                    // are we past the center?
+                    return (d.endAngle + d.startAngle)/2 > Math.PI ?
+                        "end" : "start";
+                })
+                .text(function(d) {
+                  //Math for percentage with 1 decimal point. 
+                  return Math.round(((d.endAngle - d.startAngle)/(2*Math.PI))*1000)/10 + "%";
+                });
+
+              //Ledgend copied from JC's work. "d" has been manipulated for current data set.
+              var legend = charts[this_i].selectAll(".legend")
+                    .data(catData)
+                  .enter().append("g")
+                    .attr("class", "legend")
+                    .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
+
+              legend.append("rect")
+                  .attr("x", width - 18)
+                  .attr("width", 18)
+                  .attr("height", 18)
+                  .style("fill", function(d) { return color(d.name); });
+
+              legend.append("text")
+                  .attr("x", width - 24)
+                  .attr("y", 9)
+                  .attr("dy", ".35em")
+                  .style("text-anchor", "end")
+                  .text(function(d) { return d.name; });
+
             }
             // - - - - MAKE CHART: Request per hour, bar chart.
             else if (charts_data[this_i][1] == "activity/hour"){
@@ -369,6 +661,160 @@
                   .attr("dy", ".35em")
                   .style("text-anchor", "end")
                   .text(function(d) { return d; });
+
+            }
+
+            // - - - - MAKE STACKED CHART: Request per hour, open vs closed bar chart.
+            else if (charts_data[this_i][1] == "activity/hour/stacked"){
+
+              // 1) --- Custom-format our data into an array of objects as {hour, numOfRequestsThatHour}.
+
+              var parseDate = d3.time.format("%Y-%m-%dT%H%Z").parse;
+
+              // Build the array that counts requests per hour.
+              var counts = {};
+              json_data.forEach(function(row) {
+                  // Format the date to represent a hour.
+                  var date = row.updated_datetime.slice(0, -3) + row.updated_datetime.slice(-2);     // remove the colon ':' from the timezone at the end.
+                  date = date.slice(0, 13) + date.slice(-5);     // remove anything smaller than a hour (ie. remove seconds).
+                  date = parseDate(date);                        //TODO: timezone isn't working correctly....
+                  
+
+                  // Store the date with its count (of how many times it was encountered until now).
+                  if (!counts[date]) {
+                      counts[date] = {"count": 0, "opened": 0, "closed": 0};
+                  };
+                  counts[date].count++;
+
+                  if (row.status == "open") {
+                    counts[date].opened++;
+                  } else {
+                    counts[date].closed++;
+                  }
+
+              });
+              // Use the counts array to build a proper array of data objects {hour, count}.
+              var data = [];
+              // Loop thru each key in counts, and push the key as item #1 and the counts as item #2.
+              Object.keys(counts).forEach(function(key) {
+                  // The 'key' in counts is the date. We must convert it back to a Date obj because this loop casts it to a string (weirdly).
+                  key = new Date(key);
+                  data.push({
+                      updated_datetime: key,
+                      requests: counts[key].count,
+                      opened: counts[key].opened,
+                      closed: counts[key].closed
+                  });
+              });
+              
+              // A comparison funciton that is used to sort the dates in ascending order (oldest to newest).
+              var date_sort_asc = function (date1, date2) {
+                if (date1.updated_datetime > date2.updated_datetime) return 1;
+                if (date1.updated_datetime < date2.updated_datetime) return -1;
+                return 0;
+              };
+              
+              // Sort the dates (because d3.extent() in domain() below expects items to be sorted).
+              data.sort(date_sort_asc);
+
+              // Copy new data back into json_data for convenience (so all charts use json_data for building their chart).
+              json_data = data.slice();
+
+              //Converting the data into a d3 stack layout object. In this case we are going through looking for opened and closed.
+              var openClose = d3.layout.stack()(["opened", "closed"].map(function(req) {
+                return json_data.map(function(d) {
+                  return {name: req, x: d.updated_datetime, y: d[req]};
+                });
+              }));
+              console.log("--OPEN CLOSE--");
+              console.log(openClose);
+              // 2) --- Now we can create the chart.
+              
+              //As we have different data categories the are assign the following colors.
+              var color = d3.scale.category20();
+
+              var x = d3.time.scale()
+                .range([0, width-5]);
+
+              var y = d3.scale.linear()
+                  .range([height, 0]);
+
+
+              //
+              var barChart = cur_chart.append("svg:svg")
+                  .attr("width", width)
+                  .attr("height", height)
+                .append("svg:g")
+                  .attr("transform", "translate(" + 1 + "," + height + ")");
+
+              // Compute the x-domain (by date) and y-domain (by top).
+              x.domain(d3.extent(json_data, function(d) { return d.updated_datetime; }));
+              y.domain([0, d3.max(openClose[openClose.length - 1], function(d) { return d.y0 + d.y; })]);
+
+
+              var xAxis = d3.svg.axis()
+                  .scale(x)
+                  .orient("bottom");
+
+              var yAxis = d3.svg.axis()
+                  .scale(y)
+                  .orient("left");
+
+              charts[this_i].append("g")
+                  .attr("class", "x axis")
+                  .attr("transform", "translate(0," + height + ")")
+                  .call(xAxis)
+                .append("text")
+                  .attr("class", "label")
+                  .attr("x", width)
+                  .attr("y", 20)
+                  .style("text-anchor", "end")
+                  .text("Hour");
+
+              charts[this_i].append("g")
+                  .attr("class", "y axis")
+                  .call(yAxis)
+                .append("text")
+                  .attr("transform", "rotate(-90)")
+                  .attr("y", 6)
+                  .attr("dy", ".71em")
+                  .style("text-anchor", "end")
+                  .text("#Requests");
+
+              var request = barChart.selectAll("g.request")
+                  .data(openClose)
+                .enter().append("g")
+                  .attr("class", "request")
+                  .style("fill", function(d, i) { return color(i); })
+                  .style("stroke", function(d, i) { return d3.rgb(color(i)).darker(); });
+
+              // Add a rect for each date.
+              var rect = request.selectAll("rect")
+                  .data(function(d) { return d; })
+                .enter().append("rect")
+                  .attr("x", function(d) { return x(d.x); })
+                  .attr("y", function(d) { return  -height + y(d.y0+d.y); }) //We are inverted ---^---
+                  .attr("height", function(d) { return height - y(d.y); })
+                  .attr("width", 4);
+
+              var legend = charts[this_i].selectAll(".legend")
+                    .data(openClose)
+                  .enter().append("g")
+                    .attr("class", "legend")
+                    .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
+
+              legend.append("rect")
+                  .attr("x", width - 18)
+                  .attr("width", 18)
+                  .attr("height", 18)
+                  .style("fill", function(d, i) { return color(i); });
+
+              legend.append("text")
+                  .attr("x", width - 24)
+                  .attr("y", 9)
+                  .attr("dy", ".35em")
+                  .style("text-anchor", "end")
+                  .text(function(d, i) { return d[0].name; });
 
             }
 
