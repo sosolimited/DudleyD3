@@ -90,14 +90,26 @@
                     lat = row.lat;
                     lon = row.long;
                     point = new OpenLayers.Geometry.Point(lon, lat);
+                    //var multiPolygon = new OpenLayers.Geometry.Collection(vectors[i].geometry);
                     
-                    //TODO: this loop is EXTREMELY inefficient, takes one minuted to parse all the data...
+                    //var polygon = new OpenLayers.Geometry.Polygon(multiPolygon.components[0]);
+                    //console.log("-- - -  ---- - - - - - -");
+                    //console.log(multiPolygon);
+                    //var polygon = multiPolygon;
+                    //TODO: this loop is slightly inefficient, takes 6s to parse all the data...
                     for( var i = 0; i < vectors.length; i++ ){
-                        if(vectors[i].geometry.intersects(point)){
-                           neighborhood = vectors[i].attributes['name'];
-                           console.log(neighborhood);
-                           break;
-                        }
+                      var bounds = vectors[i].geometry.getBounds();
+                      var lonLat = new OpenLayers.LonLat(lon,lat);
+                      //console.log(bounds);
+                        if(bounds.containsLonLat(lonLat)){
+                          if(vectors[i].geometry.intersects(point)){
+                          //if(polygon.intersects(point)){
+                             neighborhood = vectors[i].attributes['name'];
+                             //console.log(neighborhood);
+                             break;
+                          }
+                      }
+                      
                     }
 
                     // Store the neighborhood with its count (of how many times it was encountered until now).
