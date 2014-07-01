@@ -25,15 +25,10 @@
     var charts = [];    
     
     var charts_data = [ 
-                        // ["https://mayors24.cityofboston.gov/open311/v2/services.json?callback=handle_data", "location", "Request locations : 750 items (~6 days)", 950, 950],
-                        // ["https://mayors24.cityofboston.gov/open311/v2/requests.json?page=3&page_size=250", "activity", "test", 950, 400],
-                        //["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood", "Requests per neighborhood : 750 items (~6 days)", 950, 400],
-                        //["data/dudley-june23-750results-manuallycollated.json", "activity/hour", "Requests per hour : 750 items (~6 days)", 950, 400],
-                        ["data/dudley-june23-750results-manuallycollated.json", "activity/hour/stacked", "Requests per hour stacked : 750 items (~6 days)", 950, 400],                        
+                        // ["data/dudley-june23-750results-manuallycollated.json", "activity/hour/stacked", "Requests per hour stacked : 750 items (~6 days)", 950, 400],                        
                         ["data/dudley-june23-750results-manuallycollated.json", "location", "Request locations : 750 items (~6 days)", 950, 950],
-                        ["data/dudley-june23-750results-manuallycollated.json", "activity/category", "Requests per category : 750 items (~6 days)", 950, 500],
-                        //["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood", "Requests per neighborhood : 750 items (~6 days)", 950, 400],
-                        ["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood/stacked", "Requests per neighborhood Stacked : 750 items (~6 days)", 950, 400]
+                        // ["data/dudley-june23-750results-manuallycollated.json", "activity/category", "Requests per category : 750 items (~6 days)", 950, 500],
+                        // ["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood/stacked", "Requests per neighborhood Stacked : 750 items (~6 days)", 950, 400]
                       ];
     
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - Init : Time series charts - - -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -637,11 +632,14 @@
               charts[this_i].selectAll(".dot")
                 .data(json_data)
               .enter().append("circle")
+              .transition()
+                .delay(750)
                 .attr("class", "dot")
                 .attr("r", 3.5)
                 .attr("cx", function(d) { return x(d.lat); })
                 .attr("cy", function(d) { return y(d.long); })
-                .style("fill", function(d) { return color(d.service_name); });
+                .style("fill", function(d) { return color(d.service_name); })
+                .style("opacity", 1);
 
               var legend = charts[this_i].selectAll(".legend")
                     .data(color.domain())
