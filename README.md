@@ -4,7 +4,10 @@ DudleyD3
 A Sosolimited project.
 Based on the WGW internal D3 dashboard.
 
-###DEV Notes
+### Live version
+http://sosolimited.com/dudley/DudleyD3/
+
+### DEV Notes
 
 * About the data API 
   * Specs : http://wiki.open311.org/GeoReport_v2
