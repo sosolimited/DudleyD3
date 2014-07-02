@@ -354,8 +354,13 @@ span.niners {
 }
 /* NEW DUDLEY STUFF */
 .dot {
-  stroke: #000;
+  /*stroke: #000;*/
 }
 .arc path {
   stroke: #fff;
+}
+.boston_map path{
+  /*stroke: black;
+  stroke-width: 1px;
+  opacity: 1;*/
 }

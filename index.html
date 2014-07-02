@@ -26,7 +26,8 @@
     
     var charts_data = [ 
                         // ["data/dudley-june23-750results-manuallycollated.json", "activity/hour/stacked", "Requests per hour stacked : 750 items (~6 days)", 950, 400],                        
-                        ["data/dudley-june23-750results-manuallycollated.json", "location", "Request locations : 750 items (~6 days)", 950, 950],
+                        ["data/dudley-june23-750results-manuallycollated.json", "location/map", "Request locations : 750 items (~6 days)", 950, 700],
+                        // ["data/dudley-june23-750results-manuallycollated.json", "location/animation", "Request locations : 750 items (~6 days)", 950, 950],
                         // ["data/dudley-june23-750results-manuallycollated.json", "activity/category", "Requests per category : 750 items (~6 days)", 950, 500],
                         // ["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood/stacked", "Requests per neighborhood Stacked : 750 items (~6 days)", 950, 400]
                       ];
@@ -582,7 +583,7 @@
 
             }
             // - - - - MAKE CHART: Location Long/Lat, scatterplot.
-            else if (charts_data[this_i][1] == "location"){
+            else if (charts_data[this_i][1] == "location/animation"){
               
               var x = d3.scale.linear()
                 .range([0, width])
@@ -632,14 +633,20 @@
               charts[this_i].selectAll(".dot")
                 .data(json_data)
               .enter().append("circle")
-              .transition()
-                .delay(750)
                 .attr("class", "dot")
-                .attr("r", 3.5)
+                .attr("r", 0)
                 .attr("cx", function(d) { return x(d.lat); })
                 .attr("cy", function(d) { return y(d.long); })
+                .style("opacity",0)
                 .style("fill", function(d) { return color(d.service_name); })
-                .style("opacity", 1);
+              .transition()
+                .delay(function(d, i){ return i*50})
+                .duration(2000)
+                .attr("r", 35)
+                .style("opacity",0.7)
+                .transition()
+                  .attr("r", 3.5)
+                  .style("opacity",1);
 
               var legend = charts[this_i].selectAll(".legend")
                     .data(color.domain())
@@ -661,7 +668,107 @@
                   .text(function(d) { return d; });
 
             }
+            // - - - - MAKE CHART: Location Long/Lat, scatterplot.
+            else if (charts_data[this_i][1] == "location/map"){
+              
+              d3.json("data/boston_neighborhoods.geojson", function(geojson) {
 
+                // 1) --- Custom-format our data into an array of objects as {neighborhood, numRequests}.
+
+                // Build the array that counts the number of requests per neighborhood.
+                var counts = {};
+                var parser = new OpenLayers.Format.GeoJSON();
+                var vectors = parser.read(geojson);
+                var lat, lon, point, neighborhood = "Unknown";
+                json_data.forEach(function(row) {
+                    lat = row.lat;
+                    lon = row.long;
+                    point = new OpenLayers.Geometry.Point(lon, lat);
+                    //var multiPolygon = new OpenLayers.Geometry.Collection(vectors[i].geometry);
+                    
+                    //var polygon = new OpenLayers.Geometry.Polygon(multiPolygon.components[0]);
+                    //console.log("-- - -  ---- - - - - - -");
+                    //console.log(multiPolygon);
+                    //var polygon = multiPolygon;
+                    //TODO: this loop is slightly inefficient, takes 6s to parse all the data...
+                    for( var i = 0; i < vectors.length; i++ ){
+                      var bounds = vectors[i].geometry.getBounds();
+                      var lonLat = new OpenLayers.LonLat(lon,lat);
+                      //console.log(bounds);
+                        if(bounds.containsLonLat(lonLat)){
+                          if(vectors[i].geometry.intersects(point)){
+                          //if(polygon.intersects(point)){
+                             neighborhood = vectors[i].attributes['name'];
+                             //console.log(neighborhood);
+                             break;
+                          }
+                      }
+                      
+                    }
+
+                    // Store the neighborhood with its count (of how many times it was encountered until now).
+                    if (!counts[neighborhood]) {
+                        counts[neighborhood] = 0;
+                    }
+                    counts[neighborhood]++;
+                });
+
+                // console.log("NEIGHBORHOOD- counts");
+                // console.log(counts);
+
+                // Use the counts array to build a proper array of data objects {neighborhood, count}.
+                var data = [];
+                // Loop thru each key in counts, and push the key as item #1 and the counts as item #2.
+                Object.keys(counts).forEach(function(key) {
+                    data.push({
+                        neighborhood: key,
+                        numRequests: counts[key]
+                    });
+                });
+
+                // console.log("NEIGHBORHOOD- data PRE-SORT: ");
+                // console.log(data);
+
+                // A comparison funciton that is used to sort the dates in ascending order (oldest to newest).
+                var date_sort_asc = function (neighborhood1, neighborhood2) {
+                  if (neighborhood1.neighborhood > neighborhood2.neighborhood) return 1;
+                  if (neighborhood1.neighborhood < neighborhood2.neighborhood) return -1;
+                  return 0;
+                };
+                
+                // Sort the dates (because d3.extent() in domain() below expects items to be sorted).
+                data.sort(date_sort_asc);
+
+                // Copy new data back into json_data for convenience (so all charts use json_data for building their chart).
+                json_data = data.slice();
+                
+                console.log("NEIGHBORHOOD- json_data POST-SORT: ");
+                console.log(json_data);
+
+
+                // 2) --- Insert numRequests back into geoJSON data to have it accessible when creating the map.
+
+                //TODO
+
+                // 3) --- Create the choropleth map.
+
+                var projection = d3.geo.mercator()
+                 .translate([width/2, height/2])
+                 .scale([150000])
+                 .center([-71.07, 42.32]);
+
+                var bostonPath = d3.geo.path()
+                  .projection(projection);
+
+                charts[this_i].selectAll("path")
+                   .data(geojson.features)
+                   .enter()
+                   .append("path")
+                   .attr("class", "boston_map")
+                   .attr("d", bostonPath);
+
+              });
+            }
             // - - - - MAKE STACKED CHART: Request per hour, open vs closed bar chart.
             else if (charts_data[this_i][1] == "activity/hour/stacked"){
 
