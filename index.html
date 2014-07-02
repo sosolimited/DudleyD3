@@ -672,6 +672,8 @@
             else if (charts_data[this_i][1] == "location/map"){
               
               d3.json("data/boston_neighborhoods.geojson", function(geojson) {
+                console.log("PRE-FORMAT geoJSON");
+                console.log(geojson);
 
                 // 1) --- Custom-format our data into an array of objects as {neighborhood, numRequests}.
 
@@ -713,38 +715,26 @@
                     counts[neighborhood]++;
                 });
 
-                // console.log("NEIGHBORHOOD- counts");
-                // console.log(counts);
+                console.log("NEIGHBORHOOD- counts");
+                console.log(counts);
 
-                // Use the counts array to build a proper array of data objects {neighborhood, count}.
-                var data = [];
-                // Loop thru each key in counts, and push the key as item #1 and the counts as item #2.
+                // Inject the number of requests per neighborhood into the geoJSON so it can be used when drawing the map.
                 Object.keys(counts).forEach(function(key) {
-                    data.push({
-                        neighborhood: key,
-                        numRequests: counts[key]
-                    });
+                    var dataNeighborhood = key;
+                    var dataNumRequest = parseFloat(counts[key]);
+
+                    for (var i=0; i < geojson.features.length; i++){
+                      var geojsonNeighborhood = geojson.features[i].properties.name;
+
+                      if (dataNeighborhood == geojsonNeighborhood){
+                        geojson.features[i].properties.num_requests = dataNumRequest;
+                        break;                        
+                      }
+                    }
                 });
 
-                // console.log("NEIGHBORHOOD- data PRE-SORT: ");
-                // console.log(data);
-
-                // A comparison funciton that is used to sort the dates in ascending order (oldest to newest).
-                var date_sort_asc = function (neighborhood1, neighborhood2) {
-                  if (neighborhood1.neighborhood > neighborhood2.neighborhood) return 1;
-                  if (neighborhood1.neighborhood < neighborhood2.neighborhood) return -1;
-                  return 0;
-                };
-                
-                // Sort the dates (because d3.extent() in domain() below expects items to be sorted).
-                data.sort(date_sort_asc);
-
-                // Copy new data back into json_data for convenience (so all charts use json_data for building their chart).
-                json_data = data.slice();
-                
-                console.log("NEIGHBORHOOD- json_data POST-SORT: ");
-                console.log(json_data);
-
+                console.log("POST-FORMAT geoJSON");
+                console.log(geojson);
 
                 // 2) --- Insert numRequests back into geoJSON data to have it accessible when creating the map.
 
