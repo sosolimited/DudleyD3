@@ -25,11 +25,12 @@
     var charts = [];    
     
     var charts_data = [ 
-                        ["data/dudley-june23-750results-manuallycollated.json", "activity/hour/stacked", "Requests per hour stacked : 750 items (~6 days)", 950, 400],                        
-                        ["data/dudley-june23-750results-manuallycollated.json", "location/map", "Request map : 750 items (~6 days)", 950, 700],
                         ["data/dudley-june23-750results-manuallycollated.json", "location/animation", "Request locations animated : 750 items (~6 days)", 950, 950],
-                        ["data/dudley-june23-750results-manuallycollated.json", "activity/category", "Requests per category : 750 items (~6 days)", 950, 500],
-                        ["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood/stacked", "Requests per neighborhood Stacked : 750 items (~6 days)", 950, 400]
+                        ["data/dudley-june23-750results-manuallycollated.json", "location/map/circles", "Request neighborhoods, circles : 750 items (~6 days)", 950, 700],
+                        ["data/dudley-june23-750results-manuallycollated.json", "location/map/choropleth", "Request neighborhoods, choropleth: 750 items (~6 days)", 950, 700],
+                        ["data/dudley-june23-750results-manuallycollated.json", "activity/hour/stacked", "Requests per hour, stacked : 750 items (~6 days)", 950, 400],                        
+                        ["data/dudley-june23-750results-manuallycollated.json", "activity/category", "Requests per category, pie : 750 items (~6 days)", 950, 500],
+                        ["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood/stacked", "Requests per neighborhood, stacked : 750 items (~6 days)", 950, 400]
                       ];
     
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - Init : Time series charts - - -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -71,8 +72,141 @@
             // console.log("- - - - - - - - - - - - - - - - - - #"+ this_i +" DATA : ")
             // console.log(json_data);
 
+            // - - - - MAKE CHART: Choropleth map of Boston.
+            if (charts_data[this_i][1] == "location/map/circles"){
+              
+              d3.json("data/boston_neighborhoods.geojson", function(geojson) {
+                console.log("PRE-FORMAT geoJSON");
+                console.log(geojson);
+
+                // 1) --- Custom-format our data into an array of objects as {neighborhood, numRequests}.
+
+                // Build the array that counts the number of requests per neighborhood.
+                var counts = {};
+                var parser = new OpenLayers.Format.GeoJSON();
+                var vectors = parser.read(geojson);
+                var lat, lon, point, neighborhood = "Unknown";
+                json_data.forEach(function(row) {
+                    lat = row.lat;
+                    lon = row.long;
+                    point = new OpenLayers.Geometry.Point(lon, lat);
+                    
+                    //TODO: this loop is slightly inefficient, takes 6s to parse all the data...
+                    for( var i = 0; i < vectors.length; i++ ){
+                      var bounds = vectors[i].geometry.getBounds();
+                      var lonLat = new OpenLayers.LonLat(lon,lat);
+
+                      // Find the center point of the neighborhood.
+                      var center = bounds.getCenterLonLat();
+
+                      //console.log(bounds);
+                        if(bounds.containsLonLat(lonLat)){
+                          if(vectors[i].geometry.intersects(point)){
+                          //if(polygon.intersects(point)){
+                             neighborhood = vectors[i].attributes['name'];
+                             //console.log(neighborhood);
+                             break;
+                          }
+                      }
+                      
+                    }
+
+                    // Store the neighborhood with its count (of how many times it was encountered until now).
+                    if (!counts[neighborhood]) {
+                        counts[neighborhood] = {numRequests: 0, centerPoint: {lon: center.lon, lat: center.lat} };
+                    }
+                    counts[neighborhood].numRequests++;
+                });
+
+                console.log("NEIGHBORHOOD- counts");
+                console.log(counts);
+
+                // Inject the number of requests per neighborhood into the geoJSON so it can be used when drawing the map.
+                for (var i=0; i < geojson.features.length; i++){
+                  var geojsonNeighborhood = geojson.features[i].properties.name;
+
+                  for (var key in counts){
+                    var dataNeighborhood = key;
+                    var dataNumRequest = parseFloat(counts[key].numRequests);
+                    var dataCenterPoint = counts[key].centerPoint;
+
+                    if (geojsonNeighborhood == dataNeighborhood){
+                      geojson.features[i].properties.num_requests = dataNumRequest;
+                      geojson.features[i].properties.center = dataCenterPoint;
+                      break;
+                    } else {
+                      geojson.features[i].properties.num_requests = 0;
+                      geojson.features[i].properties.center = dataCenterPoint;
+                    }
+                  }
+                }
+
+                console.log("POST-FORMAT geoJSON");
+                console.log(geojson);
+
+
+                // 2) --- Create the choropleth map.
+
+                var projection = d3.geo.mercator()
+                 .translate([width/2, height/2])
+                 .scale([150000])
+                 .center([-71.07, 42.32]);
+
+                var bostonPath = d3.geo.path()
+                  .projection(projection);
+
+                var color = d3.scale.linear()
+                    .range(["#f7fbff", "rgb(31, 119, 180)"])        // I chose colors from ColorBrewer.
+                    .domain([
+                      d3.min(geojson.features, function(d) { return d.properties.num_requests; }),
+                      d3.max(geojson.features, function(d) { return d.properties.num_requests; })
+                    ])
+                    .nice();                              // will change the range from [1, 121] to [1, 130] to get nice whole numbers.
+
+                var strokeColor = "#ccc";
+
+                charts[this_i].selectAll("path")
+                  .data(geojson.features)
+                  .enter()
+                  .append("path")
+                  .attr("class", "boston_map")
+                  .attr("d", bostonPath)
+                  .attr("neighborhood", function(d){
+                    return d.properties.name;
+                  })
+                  .attr("num_requests", function(d){
+                    return d.properties.num_requests;
+                  })
+                  .style("fill", "#fff")
+                  .style("stroke", strokeColor);
+                
+                var numRequestsScaling = d3.scale.linear()
+                  .range([1, 40])
+                  .domain([
+                      d3.min(geojson.features, function(d) { return d.properties.num_requests; }),
+                      d3.max(geojson.features, function(d) { return d.properties.num_requests; })
+                    ]);
+                charts[this_i].selectAll("circle")
+                  .data(geojson.features)
+                  .enter()
+                  .append("circle")
+                  .attr("cx", function(d){
+                    return projection([d.properties.center.lon, d.properties.center.lat])[0];
+                  })
+                  .attr("cy", function(d){
+                    return projection([d.properties.center.lon, d.properties.center.lat])[1];
+                  })
+                  .attr("r", function(d){
+                    return numRequestsScaling(d.properties.num_requests);
+                  })
+                  .style("fill", "red")
+                  .style("stroke", "white")
+                  .style("opacity", 0.5);
+
+              });
+            }
             // - - - - MAKE CHART: Request per neighborhood, bar chart.
-            if (charts_data[this_i][1] == "activity/neighborhood"){
+            else if (charts_data[this_i][1] == "activity/neighborhood"){
 
               // Import GEOjson data of Boston neighborhoods.
               d3.json("data/boston_neighborhoods.geojson", function(error, geojson) {
@@ -88,12 +222,7 @@
                     lat = row.lat;
                     lon = row.long;
                     point = new OpenLayers.Geometry.Point(lon, lat);
-                    //var multiPolygon = new OpenLayers.Geometry.Collection(vectors[i].geometry);
                     
-                    //var polygon = new OpenLayers.Geometry.Polygon(multiPolygon.components[0]);
-                    //console.log("-- - -  ---- - - - - - -");
-                    //console.log(multiPolygon);
-                    //var polygon = multiPolygon;
                     //TODO: this loop is slightly inefficient, takes 6s to parse all the data...
                     for( var i = 0; i < vectors.length; i++ ){
                       var bounds = vectors[i].geometry.getBounds();
@@ -101,7 +230,6 @@
                       //console.log(bounds);
                         if(bounds.containsLonLat(lonLat)){
                           if(vectors[i].geometry.intersects(point)){
-                          //if(polygon.intersects(point)){
                              neighborhood = vectors[i].attributes['name'];
                              //console.log(neighborhood);
                              break;
@@ -133,7 +261,7 @@
                 // console.log("NEIGHBORHOOD- data PRE-SORT: ");
                 // console.log(data);
 
-                // A comparison funciton that is used to sort the dates in ascending order (oldest to newest).
+                // A comparison function that is used to sort the dates in ascending order (oldest to newest).
                 var date_sort_asc = function (neighborhood1, neighborhood2) {
                   if (neighborhood1.neighborhood > neighborhood2.neighborhood) return 1;
                   if (neighborhood1.neighborhood < neighborhood2.neighborhood) return -1;
@@ -669,7 +797,7 @@
 
             }
             // - - - - MAKE CHART: Choropleth map of Boston.
-            else if (charts_data[this_i][1] == "location/map"){
+            else if (charts_data[this_i][1] == "location/map/choropleth"){
               
               d3.json("data/boston_neighborhoods.geojson", function(geojson) {
                 console.log("PRE-FORMAT geoJSON");
@@ -686,12 +814,14 @@
                     lat = row.lat;
                     lon = row.long;
                     point = new OpenLayers.Geometry.Point(lon, lat);
-                    //var multiPolygon = new OpenLayers.Geometry.Collection(vectors[i].geometry);
                     
+                    // DEV-JUSTIN:
+                    //var multiPolygon = new OpenLayers.Geometry.Collection(vectors[i].geometry);
                     //var polygon = new OpenLayers.Geometry.Polygon(multiPolygon.components[0]);
                     //console.log("-- - -  ---- - - - - - -");
                     //console.log(multiPolygon);
                     //var polygon = multiPolygon;
+
                     //TODO: this loop is slightly inefficient, takes 6s to parse all the data...
                     for( var i = 0; i < vectors.length; i++ ){
                       var bounds = vectors[i].geometry.getBounds();
@@ -710,37 +840,37 @@
 
                     // Store the neighborhood with its count (of how many times it was encountered until now).
                     if (!counts[neighborhood]) {
-                        counts[neighborhood] = 0;
+                        counts[neighborhood] = {numRequests: 0};
                     }
-                    counts[neighborhood]++;
+                    counts[neighborhood].numRequests++;
                 });
 
                 console.log("NEIGHBORHOOD- counts");
                 console.log(counts);
 
+
                 // Inject the number of requests per neighborhood into the geoJSON so it can be used when drawing the map.
-                Object.keys(counts).forEach(function(key) {
+                for (var i=0; i < geojson.features.length; i++){
+                  var geojsonNeighborhood = geojson.features[i].properties.name;
+
+                  for (var key in counts){
                     var dataNeighborhood = key;
-                    var dataNumRequest = parseFloat(counts[key]);
+                    var dataNumRequest = parseFloat(counts[key].numRequests);
 
-                    for (var i=0; i < geojson.features.length; i++){
-                      var geojsonNeighborhood = geojson.features[i].properties.name;
-
-                      if (dataNeighborhood == geojsonNeighborhood){
-                        geojson.features[i].properties.num_requests = dataNumRequest;
-                        break;                 
-                      }
+                    if (geojsonNeighborhood == dataNeighborhood){
+                      geojson.features[i].properties.num_requests = dataNumRequest;
+                      break;
+                    } else {
+                      geojson.features[i].properties.num_requests = 0;
                     }
-                });
+                  }
+                }
 
                 console.log("POST-FORMAT geoJSON");
                 console.log(geojson);
 
-                // 2) --- Insert numRequests back into geoJSON data to have it accessible when creating the map.
 
-                //TODO
-
-                // 3) --- Create the choropleth map.
+                // 2) --- Create the choropleth map.
 
                 var projection = d3.geo.mercator()
                  .translate([width/2, height/2])
@@ -751,7 +881,7 @@
                   .projection(projection);
 
                 var color = d3.scale.linear()
-                    .range(["#f7fbff", "#034e7b"])        // I chose colors from ColorBrewer.
+                    .range(["#f7fbff", "rgb(31, 119, 180)"])        // I chose colors from ColorBrewer.
                     .domain([
                       d3.min(geojson.features, function(d) { return d.properties.num_requests; }),
                       d3.max(geojson.features, function(d) { return d.properties.num_requests; })
@@ -774,7 +904,7 @@
                   })
                   .style("fill", function(d){
                     var num_requests = d.properties.num_requests;
-                    if(num_requests){
+                    if(num_requests > 0){
                       return color(num_requests);
                     } else {
                       return "#fff";    // if the neighborhood doesn't have any num_requests, then give it a pure white color fill.
@@ -782,7 +912,7 @@
                   })
                   .style("stroke", function(d){
                     var num_requests = d.properties.num_requests;
-                    if(!num_requests){
+                    if(num_requests == 0){
                       return strokeColor;    // if the neighborhood doesn't have any num_requests, then give it a slight gray stroke.
                     }
                   });
@@ -815,6 +945,7 @@
 
                   charts[this_i].append("svg:rect")
                       .attr("x", width - legendWidth)
+                      .attr("y", 10)
                       .attr("width", legendWidth)
                       .attr("height", 18)
                       .style("fill", "url(#gradient)")
@@ -823,17 +954,24 @@
                   // Add text for max of range.
                   legend.append("text")
                       .attr("x", width)
-                      .attr("y", 30)
+                      .attr("y", 40)
                       .attr("dy", ".35em")
                       .style("text-anchor", "end")
                       .text(function(d) { return d; });
                   // Add text for min of range.
                   legend.append("text")
                       .attr("x", width - legendWidth + 5)
-                      .attr("y", 30)
+                      .attr("y", 40)
                       .attr("dy", ".35em")
                       .style("text-anchor", "end")
                       .text("0");
+                  // Add legend title.
+                  legend.append("text")
+                      .attr("x", width - 25)
+                      .attr("y", 0)
+                      .attr("dy", ".35em")
+                      .style("text-anchor", "end")
+                      .text("#Requests");
 
               });
             }
