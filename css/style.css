@@ -359,8 +359,7 @@ span.niners {
 .arc path {
   stroke: #fff;
 }
-.boston_map path{
-  /*stroke: black;
-  stroke-width: 1px;
-  opacity: 1;*/
+path.boston_map {
+  /*stroke: #E0E0E0;
+  stroke-width: 1px;*/
 }
