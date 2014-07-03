@@ -189,8 +189,22 @@
                       d3.max(geojson.features, function(d) { return d.properties.num_requests; })
                     ])
                     .nice();                              // will change the range from [1, 121] to [1, 130] to get nice whole numbers.
-
                 var strokeColor = "#ccc";
+
+                var numRequestsScalingRadius = d3.scale.linear()
+                  .range([1, 40])
+                  .domain([
+                    d3.min(geojson.features, function(d) { return d.properties.num_requests; }),
+                    d3.max(geojson.features, function(d) { return d.properties.num_requests; })
+                  ]);
+
+                var numRequestsScalingDuration = d3.scale.linear()
+                  .range([200, 2000])
+                  .domain([
+                    // invert the min & max to make the more active neighborhoods have the smallest duration (ie. pulse more quickly).
+                    d3.max(geojson.features, function(d) { return d.properties.num_requests; }),
+                    d3.min(geojson.features, function(d) { return d.properties.num_requests; })
+                  ]);
 
                 charts[this_i].selectAll("path")
                   .data(geojson.features)
@@ -207,12 +221,7 @@
                   .style("fill", "#fff")
                   .style("stroke", strokeColor);
                 
-                var numRequestsScaling = d3.scale.linear()
-                  .range([1, 40])
-                  .domain([
-                      d3.min(geojson.features, function(d) { return d.properties.num_requests; }),
-                      d3.max(geojson.features, function(d) { return d.properties.num_requests; })
-                    ]);
+                // ---- Pulsing circle radius
                 charts[this_i].selectAll("circle")
                   .data(geojson.features)
                   .enter()
@@ -224,11 +233,63 @@
                     return projection([d.properties.center.lon, d.properties.center.lat])[1];
                   })
                   .attr("r", function(d){
-                    return numRequestsScaling(d.properties.num_requests);
+                    return numRequestsScalingRadius(d.properties.num_requests);
                   })
                   .style("fill", "red")
                   .style("stroke", "white")
-                  .style("opacity", 0.5);
+                  .style("opacity", 0.5)
+                  .transition()
+                    .each(pulse);
+
+                function pulse() {
+                  var circle = d3.select(this);
+                  (function repeat() {
+                    circle = circle
+                      .transition()
+                        .duration(500)
+                        .attr("r", 0)
+                      .transition()
+                        .duration(500)
+                        .attr("r", function(d){
+                          return numRequestsScalingRadius(d.properties.num_requests);
+                        })
+                        .each("end", repeat);
+                  })();
+                }
+
+                // ---- Pulsing circle opacity
+                // charts[this_i].selectAll("circle")
+                //   .data(geojson.features)
+                //   .enter()
+                //   .append("circle")
+                //   .attr("cx", function(d){
+                //     return projection([d.properties.center.lon, d.properties.center.lat])[0];
+                //   })
+                //   .attr("cy", function(d){
+                //     return projection([d.properties.center.lon, d.properties.center.lat])[1];
+                //   })
+                //   .attr("r", function(d){
+                //     return numRequestsScalingRadius(d.properties.num_requests);
+                //   })
+                //   .style("fill", "red")
+                //   .style("stroke", "white")
+                //   .style("opacity", 0)
+                //   .transition()
+                //     .duration(function(d){
+                //       return numRequestsScalingDuration(d.properties.num_requests);
+                //     })
+                //     .each(pulse);
+
+                // function pulse() {
+                //   var circle = d3.select(this);
+                //   (function repeat() {
+                //     circle = circle.transition()
+                //         .style("opacity", 0.6)
+                //       .transition()
+                //         .style("opacity", 0.1)
+                //         .each("end", repeat);
+                //   })();
+                // }
 
               });
             }
@@ -757,6 +818,30 @@
                   .attr("dy", ".35em")
                   .style("text-anchor", "end")
                   .text(function(d) { return d; });
+
+              // Add a button to replay the animation.
+              var button = $("#graph_" + this_i).append("<button class='btn' id='button_"+this_i+"'>Replay</button>");
+              button.on("click", function() {
+                charts[this_i].selectAll(".dot").remove();
+                // Re-add everything as we did originally.
+                charts[this_i].selectAll(".dot")
+                  .data(json_data)
+                .enter().append("circle")
+                  .attr("class", "dot")
+                  .attr("r", 0)
+                  .attr("cx", function(d) { return x(d.lat); })
+                  .attr("cy", function(d) { return y(d.long); })
+                  .style("opacity",0)
+                  .style("fill", function(d) { return color(d.service_name); })
+                .transition()
+                  .delay(function(d, i){ return i*50})
+                  .duration(2000)
+                  .attr("r", 35)
+                  .style("opacity",0.7)
+                  .transition()
+                    .attr("r", 3.5)
+                    .style("opacity",1);
+              });
 
             }
             // - - - - MAKE CHART: Choropleth map of Boston.
