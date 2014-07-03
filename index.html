@@ -28,11 +28,11 @@
     
     var charts_data = [ 
                         // ["data/dudley-june23-750results-manuallycollated.json", "location/animation", "Request locations animated : 750 items (~6 days)", 950, 950],
-                        ["data/dudley-june23-750results-manuallycollated.json", "location/map/circles", "Request neighborhoods, circles : 750 items (~6 days)", 950, 700],
-                        ["data/dudley-june23-750results-manuallycollated.json", "location/map/choropleth", "Request neighborhoods, choropleth: 750 items (~6 days)", 950, 700],
-                        // ["data/dudley-june23-750results-manuallycollated.json", "activity/hour/stacked", "Requests per hour, stacked : 750 items (~6 days)", 950, 400],                        
+                        // ["data/dudley-june23-750results-manuallycollated.json", "location/map/circles", "Request neighborhoods, circles : 750 items (~6 days)", 950, 700],
+                        // ["data/dudley-june23-750results-manuallycollated.json", "location/map/choropleth", "Request neighborhoods, choropleth: 750 items (~6 days)", 950, 700],
+                        ["data/dudley-june23-750results-manuallycollated.json", "activity/hour/stacked", "Requests per hour, stacked : 750 items (~6 days)", 950, 400],                        
                         // ["data/dudley-june23-750results-manuallycollated.json", "activity/category", "Requests per category, pie : 750 items (~6 days)", 950, 500],
-                        ["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood/stacked", "Requests per neighborhood, stacked : 750 items (~6 days)", 950, 400]
+                        // ["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood/stacked", "Requests per neighborhood, stacked : 750 items (~6 days)", 950, 400]
                       ];
     
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - Init : Time series charts - - -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -345,18 +345,21 @@
                 // Use the counts array to build a proper array of data objects {neighborhood, count}.
                 var data = [];
                 // Loop thru each key in counts, and push the key as item #1 and the counts as item #2, and categories as item #3.
-                Object.keys(counts).forEach(function(key) {
-                    data.push({
-                        neighborhood: key,
-                        numRequests: counts[key].numRequests,
-                        categories: counts[key].categories
-                    });
-                });
+                for (var key in counts){
+                  var dataNeighborhood = key;
+                  var dataNumRequest = parseFloat(counts[key].numRequests);
+                  var dataCategories = counts[key].categories;
+                  data.push({
+                    neighborhood: dataNeighborhood,
+                    numRequests: dataNumRequest,
+                    categories: dataCategories
+                  });
+                }
 
-                var allReq = [];
-                Object.keys(_this.allRequestTypes).forEach(function(key) {
-                      allReq.push(key);
-                });
+                var allReq = [];                
+                for (var key in _this.allRequestTypes){
+                  allReq.push(key);
+                }
 
                 // A comparison funciton that is used to sort the dates in ascending order (oldest to newest).
                 var date_sort_asc = function (neighborhood1, neighborhood2) {
@@ -928,17 +931,18 @@
               });
               // Use the counts array to build a proper array of data objects {hour, count}.
               var data = [];
+              
               // Loop thru each key in counts, and push the key as item #1 and the counts as item #2.
-              Object.keys(counts).forEach(function(key) {
-                  // The 'key' in counts is the date. We must convert it back to a Date obj because this loop casts it to a string (weirdly).
-                  key = new Date(key);
-                  data.push({
-                      updated_datetime: key,
-                      requests: counts[key].count,
-                      opened: counts[key].opened,
-                      closed: counts[key].closed
-                  });
-              });
+              for (var key in counts){
+                // The 'key' in counts is the date. We must convert it back to a Date obj because this loop casts it to a string (weirdly).
+                key = new Date(key);
+                data.push({
+                  updated_datetime: key,
+                  requests: counts[key].count,
+                  opened: counts[key].opened,
+                  closed: counts[key].closed
+                });
+              }
               
               // A comparison funciton that is used to sort the dates in ascending order (oldest to newest).
               var date_sort_asc = function (date1, date2) {
