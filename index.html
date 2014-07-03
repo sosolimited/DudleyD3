@@ -27,6 +27,7 @@
     var allRequestTypes;
     
     var charts_data = [ 
+                        ["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood", "Request neighborhoods, circles : 750 items (~6 days)", 950, 700],
                         // ["data/dudley-june23-750results-manuallycollated.json", "location/animation", "Request locations animated : 750 items (~6 days)", 950, 950],
                         ["data/dudley-june23-750results-manuallycollated.json", "location/map/circles", "Request neighborhoods, circles : 750 items (~6 days)", 950, 700],
                         ["data/dudley-june23-750results-manuallycollated.json", "location/map/choropleth", "Request neighborhoods, choropleth: 750 items (~6 days)", 950, 700],
@@ -277,49 +278,66 @@
                 // 1) --- Custom-format our data into an array of objects as {neighborhood, numRequests}.
 
                 // Build the array that counts the number of requests per neighborhood.
-                var counts = {};
-                var parser = new OpenLayers.Format.GeoJSON();
-                var vectors = parser.read(geojson);
-                var lat, lon, point, neighborhood = "Unknown";
-                json_data.forEach(function(row) {
-                    lat = row.lat;
-                    lon = row.long;
-                    point = new OpenLayers.Geometry.Point(lon, lat);
-                    
-                    //TODO: this loop is slightly inefficient, takes 6s to parse all the data...
-                    for( var i = 0; i < vectors.length; i++ ){
-                      var bounds = vectors[i].geometry.getBounds();
-                      var lonLat = new OpenLayers.LonLat(lon,lat);
-                      //console.log(bounds);
-                        if(bounds.containsLonLat(lonLat)){
-                          if(vectors[i].geometry.intersects(point)){
-                             neighborhood = vectors[i].attributes['name'];
-                             //console.log(neighborhood);
-                             break;
-                          }
-                      }
-                      
-                    }
+                // Build the array that counts the number of requests per neighborhood.
+                var counts = buildNeighborhoodData(json_data, geojson);       // Create local version of the global counts var.
 
-                    // Store the neighborhood with its count (of how many times it was encountered until now).
-                    if (!counts[neighborhood]) {
-                        counts[neighborhood] = 0;
-                    }
-                    counts[neighborhood]++;
-                });
+                // var counts = {};
+                // var parser = new OpenLayers.Format.GeoJSON();
+                // var vectors = parser.read(geojson);
+                // var lat, lon, point, neighborhood = "Unknown";
+                // json_data.forEach(function(row) {
+                //     lat = row.lat;
+                //     lon = row.long;
+                //     point = new OpenLayers.Geometry.Point(lon, lat);
+                    
+                //     //TODO: this loop is slightly inefficient, takes 6s to parse all the data...
+                //     for( var i = 0; i < vectors.length; i++ ){
+                //       var bounds = vectors[i].geometry.getBounds();
+                //       var lonLat = new OpenLayers.LonLat(lon,lat);
+                //       //console.log(bounds);
+                //         if(bounds.containsLonLat(lonLat)){
+                //           if(vectors[i].geometry.intersects(point)){
+                //              neighborhood = vectors[i].attributes['name'];
+                //              //console.log(neighborhood);
+                //              break;
+                //           }
+                //       }
+                      
+                //     }
+
+                //     // Store the neighborhood with its count (of how many times it was encountered until now).
+                //     if (!counts[neighborhood]) {
+                //         counts[neighborhood] = 0;
+                //     }
+                //     counts[neighborhood]++;
+                // });
 
                 // console.log("NEIGHBORHOOD- counts");
                 // console.log(counts);
 
                 // Use the counts array to build a proper array of data objects {neighborhood, count}.
                 var data = [];
+                
+
+
+                for (var key in counts){
+                  var dataNeighborhood = key;
+                  var dataNumRequest = parseFloat(counts[key].numRequests);
+                  data.push({
+                    neighborhood: dataNeighborhood,
+                    numRequests: dataNumRequest
+                  });
+                }
+
+
+
                 // Loop thru each key in counts, and push the key as item #1 and the counts as item #2.
-                Object.keys(counts).forEach(function(key) {
-                    data.push({
-                        neighborhood: key,
-                        numRequests: counts[key]
-                    });
-                });
+                // Object.keys(counts).forEach(function(key) {
+                //     data.push({
+                //         neighborhood: key,
+                //         numRequests: counts[key]
+                //     });
+                // });
 
                 // console.log("NEIGHBORHOOD- data PRE-SORT: ");
                 // console.log(data);
