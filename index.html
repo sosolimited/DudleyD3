@@ -140,6 +140,7 @@
   
           // Load the JSON data.
           d3.json(charts_data[this_i][0], function(error, json_data) {
+            
             // - - - - - - - - - - - - - - - - - - - - - - 
             // adding "Other" parsing
             // - - - - - - - - - - - - - - - - - - - - - - 
@@ -151,66 +152,54 @@
             var signTerms = ["sign", "signs"];
             var landscapingTerms = ["tree", "trees", "plant", "plants", "yard", "branches", "branch", "grass"];
 
+            //  RegEx for puntuation.
             var punctRegEx = new RegExp(/(?!\.\w{1,2})(?!\.\d{1,2})(?!\:\d{1,2})([^A-Za-z0-9#'\u2026]+|https?:\/\/\S+)/g);
 
-            function oc(a) // array to object converter.
-            {
-              var o = {};
-              for(var i=0;i<a.length;i++)
-              {
-                o[a[i]]='';
-              }
-              return o;
-            }
-            var remainingOthers = [];
-            var remainingDescriptions = [];
+            //var remainingOthers = []; // for checking word counts of un accounted others.
+            //var remainingDescriptions = [];
             $.each(json_data, function (key, value) {
               if (value.service_name == "Other") {
                 if (value.description != undefined) {
-                  var words = value.description.replace(punctRegEx, " "); // convert description sentence to lowercase.           
-                  //console.log(words);
-                  words = words.toLowerCase();
-                  console.log(words);
+                  var words = value.description.replace(punctRegEx, " ");  // Remove Punctuation          
+                  words = words.toLowerCase(); // convert description sentence to lowercase.
                   var wordsArray = words.split(" ");
-                  if (trashTerms.similar(wordsArray)) {
-                    //console.log("--- A true match with Trash Terms.");
-                    json_data[key].service_name = "Trash";
+                  if (trashTerms.similar(wordsArray)) {   // .similar is prototyped to array at the top of the script.
+                    json_data[key].service_name = "Trash";  // True match to trashTerms
                   } else if (vehicleTerms.similar(wordsArray)) {
-                    //console.log("- A true match with Vehicle Terms.");
-                    json_data[key].service_name = "Vehicle";
+                    json_data[key].service_name = "Vehicle";  // True match to vehicleTerms
                   } else if (streetlightTerms.similar(wordsArray)) {
-                    json_data[key].service_name = "Streetlight";
+                    json_data[key].service_name = "Streetlight";  // True match to streetlightTerms
                   } else if (sidewalkTerms.similar(wordsArray)) {
-                    json_data[key].service_name = "Sidewalk Patch";
+                    json_data[key].service_name = "Sidewalk Patch"; // True match to sidewalkTerms
                   } else if (graffitiTerms.similar(wordsArray)) {
-                    json_data[key].service_name = "Graffiti";
+                    json_data[key].service_name = "Graffiti"; // True match to graffitiTerms
                   } else if (signTerms.similar(wordsArray)) {
-                    json_data[key].service_name = "Damaged Sign";
+                    json_data[key].service_name = "Damaged Sign"; // True match to signTerms
                   } else if (landscapingTerms.similar(wordsArray)) {
-                    json_data[key].service_name = "Landscaping";
+                    json_data[key].service_name = "Landscaping";  // True match to landscapingTerms
                   } else {
                     //console.log("------ A FLASE return ------");
-                    remainingDescriptions.push(value.description);
-                    $.each(wordsArray, function (k, v) {
-                      if (remainingOthers[v] == undefined) {
-                        remainingOthers[v] = { "count" : 1 };
-                      } else {
-                        remainingOthers[v].count++;
-                      }
-                    });
+                    //remainingDescriptions.push(value.description);  //Uncomment to count unaccounted words.
+                    //$.each(wordsArray, function (k, v) {
+                    //  if (remainingOthers[v] == undefined) {
+                    //    remainingOthers[v] = { "count" : 1 };
+                    //  } else {
+                    //    remainingOthers[v].count++;
+                    //  }
+                    //});
                   }
                 }
               }
             });
 
-            console.log("THE DATA IS COMING!!!")
-            console.log(remainingOthers);
-            console.log(remainingDescriptions.join("; "));
-
+            // console.log("THE DATA IS COMING!!!")
+            // console.log(remainingOthers);
+            // console.log(remainingDescriptions.join("; "));
 
             // - - - - - - - - - - - - - - - - - - - - - - 
             // End of parsing
             // - - - - - - - - - - - - - - - - - - - - - - 
+
 
             // console.log("- - - - - - - - - - - - - - - - - - #"+ this_i +" DATA : ")
             // console.log(json_data);
