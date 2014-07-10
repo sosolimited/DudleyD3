@@ -42,6 +42,17 @@
 
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - Functions - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+    // Adding a similarity comparision to Arrays.
+    Array.prototype.similar = function(arr2) {
+      for (i in this) {
+        if (arr2.indexOf( this[i] ) > -1) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+
     function buildNeighborhoodData(json_data, geojson){
       console.log("buildNeighborhoodData- ENTER");
 
@@ -129,7 +140,78 @@
   
           // Load the JSON data.
           d3.json(charts_data[this_i][0], function(error, json_data) {
-            
+            // - - - - - - - - - - - - - - - - - - - - - - 
+            // adding "Other" parsing
+            // - - - - - - - - - - - - - - - - - - - - - - 
+            var trashTerms = ["trash", "garbage", "dumpster", "junk", "rubbish", "waste", "litter", "refuse", "recycling", "debris", "crap", "mess", "bin"];
+            var vehicleTerms = ["car", "cars", "vehicle", "truck", "bicycle", "bike", "motorcycle", "trailer"];
+            var streetlightTerms = ["light", "lights", "streetlight", "signal", "signals"];
+            var sidewalkTerms = ["sidewalk"];
+            var graffitiTerms = ["graffiti"];
+            var signTerms = ["sign", "signs"];
+            var landscapingTerms = ["tree", "trees", "plant", "plants", "yard", "branches", "branch", "grass"];
+
+            var punctRegEx = new RegExp(/(?!\.\w{1,2})(?!\.\d{1,2})(?!\:\d{1,2})([^A-Za-z0-9#'\u2026]+|https?:\/\/\S+)/g);
+
+            function oc(a) // array to object converter.
+            {
+              var o = {};
+              for(var i=0;i<a.length;i++)
+              {
+                o[a[i]]='';
+              }
+              return o;
+            }
+            var remainingOthers = [];
+            var remainingDescriptions = [];
+            $.each(json_data, function (key, value) {
+              if (value.service_name == "Other") {
+                if (value.description != undefined) {
+                  var words = value.description.replace(punctRegEx, " "); // convert description sentence to lowercase.           
+                  //console.log(words);
+                  words = words.toLowerCase();
+                  console.log(words);
+                  var wordsArray = words.split(" ");
+                  if (trashTerms.similar(wordsArray)) {
+                    //console.log("--- A true match with Trash Terms.");
+                    json_data[key].service_name = "Trash";
+                  } else if (vehicleTerms.similar(wordsArray)) {
+                    //console.log("- A true match with Vehicle Terms.");
+                    json_data[key].service_name = "Vehicle";
+                  } else if (streetlightTerms.similar(wordsArray)) {
+                    json_data[key].service_name = "Streetlight";
+                  } else if (sidewalkTerms.similar(wordsArray)) {
+                    json_data[key].service_name = "Sidewalk Patch";
+                  } else if (graffitiTerms.similar(wordsArray)) {
+                    json_data[key].service_name = "Graffiti";
+                  } else if (signTerms.similar(wordsArray)) {
+                    json_data[key].service_name = "Damaged Sign";
+                  } else if (landscapingTerms.similar(wordsArray)) {
+                    json_data[key].service_name = "Landscaping";
+                  } else {
+                    //console.log("------ A FLASE return ------");
+                    remainingDescriptions.push(value.description);
+                    $.each(wordsArray, function (k, v) {
+                      if (remainingOthers[v] == undefined) {
+                        remainingOthers[v] = { "count" : 1 };
+                      } else {
+                        remainingOthers[v].count++;
+                      }
+                    });
+                  }
+                }
+              }
+            });
+
+            console.log("THE DATA IS COMING!!!")
+            console.log(remainingOthers);
+            console.log(remainingDescriptions.join("; "));
+
+
+            // - - - - - - - - - - - - - - - - - - - - - - 
+            // End of parsing
+            // - - - - - - - - - - - - - - - - - - - - - - 
+
             // console.log("- - - - - - - - - - - - - - - - - - #"+ this_i +" DATA : ")
             // console.log(json_data);
 
