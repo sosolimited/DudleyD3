@@ -18,21 +18,33 @@
   <script src="js/d3.min.js"></script>
   <script src="js/common.js"></script>
   <script src="js/OpenLayers.js"></script>  <!-- Used for calculating if a lat/long point is within a geojson polygon, ie. to determine what neighborhood a request made in. -->
+  <script src="js/jsonp.js"></script>
   <script type="text/javascript" charset="utf-8">
     
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - General - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+    var json_data = "hello";
     var charts = [];
     var counts = null;            // Stores the count of number of requests per neighborhood. Because it is memory intensive (takes about 6 seconds) we want to do it only once and store as a global var.
     var allRequestTypes;
     
     var charts_data = [ 
-                        ["data/dudley-june23-750results-manuallycollated.json", "location/animation", "Request locations animated : 750 items (~6 days)", 950, 950],
-                        ["data/dudley-june23-750results-manuallycollated.json", "location/map/circles", "Request neighborhoods, circles : 750 items (~6 days)", 950, 700],
-                        ["data/dudley-june23-750results-manuallycollated.json", "location/map/choropleth", "Request neighborhoods, choropleth: 750 items (~6 days)", 950, 700],
-                        ["data/dudley-june23-750results-manuallycollated.json", "activity/hour/stacked", "Requests per hour, stacked : 750 items (~6 days)", 950, 400],                        
-                        ["data/dudley-june23-750results-manuallycollated.json", "activity/category", "Requests per category, pie : 750 items (~6 days)", 950, 500],
-                        ["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood/stacked", "Requests per neighborhood, stacked : 750 items (~6 days)", 950, 950]
+                        // REAL URL: doesnt work yet.
+                        // ["https://mayors24.cityofboston.gov/open311/v2/requests.json?callback={callback}&page_size=250", "location/animation", "Request locations animated : 750 items (~6 days)", 950, 950],
+                        // TEST URL: this works, but is bad test data.
+                        ["https://mayors24test.cityofboston.gov:6443/open311/v2/requests.json?callback={callback}&page_size=200", "location/animation", "Request locations animated : last 200 items", 950, 950],
+                        ["https://mayors24test.cityofboston.gov:6443/open311/v2/requests.json?callback={callback}&page_size=200", "location/map/circles", "Request neighborhoods, circles : last 200 items", 950, 700],
+                        ["https://mayors24test.cityofboston.gov:6443/open311/v2/requests.json?callback={callback}&page_size=200", "location/map/choropleth", "Request neighborhoods, choropleth: last 200 items", 950, 700],
+                        ["https://mayors24test.cityofboston.gov:6443/open311/v2/requests.json?callback={callback}&page_size=200", "activity/hour/stacked", "Requests per hour, stacked : last 200 items", 950, 400],                        
+                        ["https://mayors24test.cityofboston.gov:6443/open311/v2/requests.json?callback={callback}&page_size=200", "activity/category", "Requests per category, pie : last 200 items", 950, 500],
+                        ["https://mayors24test.cityofboston.gov:6443/open311/v2/requests.json?callback={callback}&page_size=200", "activity/neighborhood/stacked", "Requests per neighborhood, stacked : last 200 items", 950, 950]
+                        // STATIC DATA.
+                        // ["data/dudley-june23-750results-manuallycollated.json", "location/animation", "Request locations animated : 750 items (~6 days)", 950, 950],
+                        // ["data/dudley-june23-750results-manuallycollated.json", "location/map/circles", "Request neighborhoods, circles : 750 items (~6 days)", 950, 700],
+                        // ["data/dudley-june23-750results-manuallycollated.json", "location/map/choropleth", "Request neighborhoods, choropleth: 750 items (~6 days)", 950, 700],
+                        // ["data/dudley-june23-750results-manuallycollated.json", "activity/hour/stacked", "Requests per hour, stacked : 750 items (~6 days)", 950, 400],                        
+                        // ["data/dudley-june23-750results-manuallycollated.json", "activity/category", "Requests per category, pie : 750 items (~6 days)", 950, 500],
+                        // ["data/dudley-june23-750results-manuallycollated.json", "activity/neighborhood/stacked", "Requests per neighborhood, stacked : 750 items (~6 days)", 950, 950]
                       ];
     
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - Init : Time series charts - - -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -139,8 +151,11 @@
           // console.log(cur_chart);
   
           // Load the JSON data.
-          d3.json(charts_data[this_i][0], function(error, json_data) {
-            
+          // d3.json(charts_data[this_i][0], function(error, json_data) {
+          d3.jsonp("https://mayors24test.cityofboston.gov:6443/open311/v2/requests.json?callback={callback}&page_size=200", function(json_data) {
+            console.log("- - - - - - - - - - - - - - - - - - #"+ this_i +" DATA : ")
+            console.log(json_data);
+
             // - - - - - - - - - - - - - - - - - - - - - - 
             // adding "Other" parsing
             // - - - - - - - - - - - - - - - - - - - - - - 
@@ -178,7 +193,7 @@
                   } else if (landscapingTerms.similar(wordsArray)) {
                     json_data[key].service_name = "Landscaping";  // True match to landscapingTerms
                   } else {
-                    //console.log("------ A FLASE return ------");
+                    //console.log("------ A FALSE return ------");
                     //remainingDescriptions.push(value.description);  //Uncomment to count unaccounted words.
                     //$.each(wordsArray, function (k, v) {
                     //  if (remainingOthers[v] == undefined) {
@@ -201,8 +216,8 @@
             // - - - - - - - - - - - - - - - - - - - - - - 
 
 
-            // console.log("- - - - - - - - - - - - - - - - - - #"+ this_i +" DATA : ")
-            // console.log(json_data);
+            console.log("- - - - - - - - - - - - - - - - - - #"+ this_i +" DATA : ")
+            console.log(json_data);
 
             // - - - - MAKE CHART: Map of Boston with 1 pulsing circle per neighborhood, based on activity.
             if (charts_data[this_i][1] == "location/map/circles"){
