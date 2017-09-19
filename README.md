@@ -40,13 +40,14 @@ The page will now be available at http://localhost:8001 in the web browser.
   
   Here are some examples of charts included in the app:
   
-  
   A chart showing 311 reports, mapped by longitude and latitude. Colors indicate the type of report:
   
   <img src="https://github.com/sosolimited/DudleyD3/blob/master/readme_images/Example_chart.png" width="650" />  
   
   Numbers of 311 events throughout the day. Requests are colored by event status (new 311 report or closed / resolved 311 report):
-<img src="https://github.com/sosolimited/DudleyD3/blob/master/readme_images/Stacked_requests_chart.png" width="650" />  
   
-A pie chart showing 311 report breakdown by category:
+  <img src="https://github.com/sosolimited/DudleyD3/blob/master/readme_images/Stacked_requests_chart.png" width="650" />  
+  
+  A pie chart showing 311 report breakdown by category:
+  
   <img src="https://github.com/sosolimited/DudleyD3/blob/master/readme_images/request_type_pie_chart.png" width="650" />  
